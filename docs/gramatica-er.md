@@ -279,14 +279,3 @@ nome            = (letra | "_") , { letra | digito | "_" } ;
 | Cardinalidade | Um dos quatro valores: exatamente um, zero ou um, zero ou muitos, um ou muitos |
 
 A **linha de origem** serve para a validação (RF09) e para o foco entre o texto e a árvore.
-
-## 12. Decisões que a equipe pode revisar
-
-Estas escolhas foram feitas para simplificar o MVP. Se a revisão discordar de alguma, é só alterar aqui antes de o parser (#5) começar:
-
-- [ ] Bloco de entidade vazio é erro (E10)
-- [ ] Rótulo de relacionamento é obrigatório (E07)
-- [ ] Acentos só em rótulos e comentários entre aspas, nunca em identificadores
-- [ ] Comentário de atributo (`"texto"`) é aceito, mas opcional
-- [ ] Tipos com parênteses (`varchar(10)`) ficam fora do MVP
-- [ ] Autorrelacionamento é permitido
