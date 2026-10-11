@@ -42,11 +42,47 @@ O projeto segue a **WCAG 2.2, nível AA** como base obrigatória. Os testes comb
 
 ## Como rodar o projeto
 
-> Esta seção será preenchida quando o projeto base estiver configurado (issue #1).
+Pré-requisitos: [Node.js](https://nodejs.org/) (versão LTS) e Git.
+
+```bash
+git clone https://github.com/ludmilabss/uml-acessivel.git
+cd uml-acessivel
+npm install
+npm run dev
+```
+
+Depois, abra o endereço que aparece no terminal (geralmente <http://localhost:5173>).
+
+Outros comandos:
+
+| Comando | O que faz |
+|---|---|
+| `npm run lint` | Verifica o código com ESLint, incluindo regras de acessibilidade (jsx-a11y) |
+| `npm test` | Roda os testes uma vez (Vitest) |
+| `npm run test:watch` | Roda os testes e repete a cada alteração |
+| `npm run build` | Checa os tipos e gera a versão de produção em `dist/` |
+| `npm run preview` | Abre localmente a versão gerada pelo build |
+
+> O `eslint-plugin-jsx-a11y` ainda não tem suporte oficial ao ESLint 10. Por isso, ele foi liberado pelo campo `overrides` do `package.json`.
 
 ## Estrutura do repositório
 
-> Será atualizada junto com o projeto base. A ideia central é manter o código do parser e do modelo de dados (`core/`) separado da interface (`ui/`), sem dependência de React no núcleo.
+```text
+uml-acessivel/
+├── docs/              # Documentação do projeto (ex.: gramática do erDiagram)
+├── public/            # Arquivos estáticos (favicon)
+├── src/
+│   ├── core/          # Parser e modelo de dados, em TypeScript puro (sem React)
+│   ├── ui/            # Componentes React da interface
+│   ├── App.tsx        # Componente raiz
+│   ├── main.tsx       # Ponto de entrada da aplicação
+│   └── index.css      # Importa o Tailwind CSS
+├── eslint.config.js
+├── vite.config.ts
+└── package.json
+```
+
+A regra central é que **nada em `core/` importa React**. Assim, o parser e o modelo podem ser testados de forma isolada e reaproveitados.
 
 ## Equipe
 
