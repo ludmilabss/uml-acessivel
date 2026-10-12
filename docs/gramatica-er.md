@@ -12,8 +12,7 @@
 Um diagrama é um texto com:
 
 1. Uma linha de cabeçalho `erDiagram` (a primeira linha que não for comentário nem estiver em branco)
-2. Zero ou mais linhas de **relacionamento**
-3. Zero ou mais **blocos de entidade**, em qualquer ordem
+2. Zero ou mais declarações de **entidade isolada**, linhas de **relacionamento** e **blocos de entidade**, em qualquer ordem
 4. Comentários e linhas em branco, que são ignorados
 
 ```
@@ -29,12 +28,13 @@ erDiagram
 Regras gerais:
 
 - A indentação é livre (espaços ou tabs) e não tem significado.
+- Espaços ou tabs no início e no fim de uma linha são ignorados. Onde a sintaxe separa itens, é necessário ao menos um espaço ou tab; exceto junto à vírgula das chaves, onde espaços são opcionais.
 - Cada instrução ocupa **uma linha**, exceto o bloco de entidade (abre com `{`, fecha com `}`).
 - Maiúsculas e minúsculas são diferentes (`Cliente` e `CLIENTE` são entidades distintas), exceto nas palavras reservadas `erDiagram`, `PK`, `FK` e `UK`, que devem ser escritas exatamente assim.
 
 ## 2. Comentários
 
-Linha que começa com `%%`. Vale a linha inteira. Comentário no meio ou no fim de uma instrução **não** é suportado.
+Linha que, depois de ignorada a indentação inicial, começa com `%%`. Vale a linha inteira. Comentário no meio ou no fim de uma instrução **não** é suportado.
 
 ```
 %% isto é um comentário
@@ -74,10 +74,17 @@ CLIENTE {
 CLIENTE ||..o{ PEDIDO : faz
 ```
 
+**c) Declarada isoladamente** (sem atributos nem relacionamentos). Nesse caso ela existe com **zero atributos**.
+
+```
+CLIENTE
+```
+
 Restrições:
 
 - Um bloco só é válido com **pelo menos um atributo** (bloco vazio `{ }` é erro).
 - Uma entidade pode ter **no máximo um bloco** (bloco repetido é erro).
+- A mesma entidade pode ser declarada isoladamente e depois receber um bloco ou participar de relacionamentos. Isso não cria outra entidade.
 
 ## 5. Atributos
 
@@ -92,7 +99,7 @@ tipo nome [chaves] ["comentário"]
 | `tipo` | Sim | Ver seção 3 |
 | `nome` | Sim | Ver seção 3 |
 | `chaves` | Não | Uma ou mais de `PK`, `FK`, `UK`, separadas por vírgula |
-| `"comentário"` | Não | Texto entre aspas duplas, no fim da linha |
+| `"comentário"` | Não | Texto não vazio entre aspas duplas, no fim da linha |
 
 **Chaves**
 
@@ -106,6 +113,8 @@ tipo nome [chaves] ["comentário"]
 - Mais de um atributo `PK` na mesma entidade é permitido (chave composta).
 - A mesma chave repetida no mesmo atributo (`PK, PK`) é erro.
 - Nomes de atributo **não podem se repetir** dentro da mesma entidade.
+- Espaços em torno da vírgula são opcionais: `PK,FK` e `PK, FK` são equivalentes.
+- Não há caractere de escape no MVP: texto entre aspas não pode conter aspas duplas nem quebra de linha.
 
 Exemplos válidos:
 
@@ -156,9 +165,10 @@ O símbolo **ao lado de uma entidade** diz **quantas instâncias dela** particip
 ### 6.3 Rótulo
 
 - É **obrigatório**.
-- Uma palavra sem espaços: `faz`, `contem`.
+- Sem aspas, deve seguir `rótulo-simples`: começa com letra ou `_`; depois aceita letras, dígitos, `_` ou `-` (`faz`, `contem`, `faz-pedido`).
 - Com espaços ou acentos: entre aspas duplas, `"aparece em"`, `"possui endereço"`.
 - Acentos só são aceitos **dentro de aspas**.
+- O texto entre aspas deve ser não vazio e não pode conter aspas duplas nem quebra de linha. Não há caractere de escape no MVP.
 
 ### 6.4 Tipo do relacionamento (derivado)
 
@@ -177,7 +187,7 @@ Exemplo de narração: `CLIENTE ||..o{ PEDIDO : faz` → "Cliente, exatamente um
 
 - As duas entidades devem ter nomes válidos (seção 3). Se ainda não existirem, são criadas.
 - Uma entidade pode se relacionar **consigo mesma** (autorrelacionamento).
-- Pode haver **mais de um** relacionamento entre o mesmo par de entidades (rótulos diferentes).
+- Pode haver mais de um relacionamento, inclusive com o mesmo rótulo, entre o mesmo par de entidades. Cada ocorrência é preservada como um relacionamento distinto e identificada pela sua linha de origem.
 
 Exemplos válidos:
 
@@ -228,7 +238,7 @@ Toda mensagem informa **a linha** e **o motivo**, em texto claro (será anunciad
 
 | Código | Situação | Mensagem sugerida |
 |---|---|---|
-| E01 | Falta o cabeçalho `erDiagram` | "Linha 1: o diagrama deve começar com erDiagram." |
+| E01 | Falta o cabeçalho `erDiagram` na primeira linha útil | "Linha 1: a primeira linha útil do diagrama deve ser erDiagram." |
 | E02 | Linha não reconhecida | "Linha 5: instrução não reconhecida." |
 | E03 | Bloco de entidade sem `}` | "Linha 8: o bloco da entidade CLIENTE não foi fechado." |
 | E04 | Atributo sem tipo ou sem nome | "Linha 6: o atributo precisa de tipo e nome." |
@@ -241,13 +251,34 @@ Toda mensagem informa **a linha** e **o motivo**, em texto claro (será anunciad
 | E11 | Aspas não fechadas | "Linha 9: aspas não fechadas." |
 | E12 | Chave repetida no atributo | "Linha 6: a chave PK está repetida." |
 | E13 | Recurso fora do MVP | "Linha 2: este recurso ainda não é suportado." |
+| E14 | Texto entre aspas vazio | "Linha 3: o texto entre aspas não pode ser vazio." |
 
-## 10. Gramática formal (referência rápida)
+## 10. Resultado do parser e posições de origem
+
+O parser é independente da interface e deve devolver um resultado explícito:
+
+- `diagram`: o modelo do diagrama, presente somente se não houver erros;
+- `errors`: lista de `ParseError`, possivelmente com mais de um erro;
+- cada `ParseError`: código, mensagem e linha de origem (numeração iniciada em 1).
+
+O parser deve continuar a analisar linhas independentes depois de um erro, quando isso for seguro, para comunicar mais de um problema de uma vez. A interface não deve construir a árvore semântica nem o SVG a partir de `diagram` enquanto houver erros.
+
+Cada elemento válido guarda posições de origem:
+
+- entidade: `firstMentionLine` (primeira declaração ou referência) e `declarationLine` (linha do bloco, se houver);
+- atributo e relacionamento: `line`;
+- diagrama: linha do cabeçalho.
+
+Essas posições servem para mensagens de validação e para uma futura sincronização entre editor, árvore e SVG.
+
+## 11. Gramática formal (referência rápida)
 
 ```
-diagrama        = cabecalho , { linha } ;
+diagrama        = { ignorada } , cabecalho , { linha } ;
 cabecalho       = "erDiagram" ;
-linha           = comentario | relacionamento | bloco | vazia ;
+linha           = comentario | relacionamento | bloco | entidade-isolada | vazia ;
+ignorada        = comentario | vazia ;
+vazia           = { espaco } ;
 
 comentario      = "%%" , texto ;
 
@@ -256,10 +287,13 @@ operador        = lado_esq , ligacao , lado_dir ;
 lado_esq        = "||" | "|o" | "}o" | "}|" ;
 lado_dir        = "||" | "o|" | "o{" | "|{" ;
 ligacao         = "--" | ".." ;
-rotulo          = palavra | '"' , texto , '"' ;
+rotulo          = rotulo-simples | texto-citado ;
+rotulo-simples  = (letra | "_") , { letra | digito | "_" | "-" } ;
+texto-citado    = '"' , texto-nao-vazio-sem-aspas , '"' ;
 
+entidade-isolada = entidade ;
 bloco           = entidade , "{" , atributo , { atributo } , "}" ;
-atributo        = tipo , nome , [ chaves ] , [ '"' , texto , '"' ] ;
+atributo        = tipo , nome , [ chaves ] , [ texto-citado ] ;
 chaves          = chave , { "," , chave } ;
 chave           = "PK" | "FK" | "UK" ;
 
@@ -268,12 +302,14 @@ tipo            = letra , { letra | digito | "_" } ;
 nome            = (letra | "_") , { letra | digito | "_" } ;
 ```
 
-## 11. Ponte para o modelo de dados (#4)
+Nesta notação, os separadores entre itens aceitam um ou mais espaços ou tabs, as bordas das linhas são ignoradas e espaços junto à vírgula das chaves são opcionais. `texto` não contém quebra de linha nem aspas duplas; em `texto-citado`, ele também não pode ser vazio.
+
+## 12. Ponte para o modelo de dados (#4)
 
 | Conceito da gramática | O que o modelo precisa guardar |
 |---|---|
 | Diagrama | Lista de entidades e lista de relacionamentos |
-| Entidade | Nome; atributos (lista, possivelmente vazia); linha de origem |
+| Entidade | Nome; atributos (lista, possivelmente vazia); primeira menção; linha do bloco, se houver |
 | Atributo | Tipo; nome; chaves (PK, FK, UK); comentário opcional; linha de origem |
 | Relacionamento | Entidade da esquerda e da direita; cardinalidade de cada lado; identificador (sim ou não); rótulo; linha de origem |
 | Cardinalidade | Um dos quatro valores: exatamente um, zero ou um, zero ou muitos, um ou muitos |
