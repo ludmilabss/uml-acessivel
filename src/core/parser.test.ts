@@ -165,6 +165,48 @@ erDiagram
     ]);
   });
 
+  it('rejeita palavras reservadas e segundo cabeçalho em vez de criar entidades', () => {
+    const result = parseErDiagram(`erDiagram
+  CLIENTE
+  style CLIENTE fill:#f9f
+  classDef destaque fill:#f9f
+  class CLIENTE destaque
+  erDiagram`);
+
+    expect(result.diagram).toBeUndefined();
+    expect(result.errors).toEqual([
+      expect.objectContaining({ code: 'E13', line: 3 }),
+      expect.objectContaining({ code: 'E13', line: 4 }),
+      expect.objectContaining({ code: 'E13', line: 5 }),
+      expect.objectContaining({ code: 'E13', line: 6 }),
+    ]);
+  });
+
+  it('aceita palavras reservadas como nomes de entidade em relacionamento válido', () => {
+    const result = parseErDiagram(`erDiagram
+  style ||..o{ class : usa`);
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagram?.entities.map((entity) => entity.name)).toEqual(['style', 'class']);
+  });
+
+  it('rejeita acentos fora de aspas e aceita dentro delas', () => {
+    const result = parseErDiagram(`erDiagram
+  PREÇO
+  PRODUTO {
+    decimal preço
+    string nome "descrição do produto"
+  }
+  PRODUTO ||..o{ PEDIDO : contém
+  CLIENTE ||..o{ ENDERECO : "possui endereço"`);
+
+    expect(result.errors).toEqual([
+      expect.objectContaining({ code: 'E13', line: 2 }),
+      expect.objectContaining({ code: 'E13', line: 4 }),
+      expect.objectContaining({ code: 'E13', line: 7 }),
+    ]);
+  });
+
   it('informa instrução desconhecida, bloco repetido, atributo incompleto e texto vazio', () => {
     const result = parseErDiagram(`erDiagram
   CLIENTE {

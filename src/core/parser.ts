@@ -28,8 +28,9 @@ const relationshipPrefixExpression = new RegExp(
 const relationshipWithoutLabelExpression = new RegExp(
   `^${ENTITY_PATTERN}\\s+\\S+\\s+${ENTITY_PATTERN}(?:\\s*:\\s*)?$`,
 );
-const relationshipOperatorExpression = /^(\|\||\|o|}\||}o)(--|\.\.)(\|\||o\||\|\{|o\{$)$/;
+const relationshipOperatorExpression = /^(\|\||\|o|}\||}o)(--|\.\.)(\|\||o\||\|\{|o\{)$/;
 const simpleLabelExpression = new RegExp(`^${SIMPLE_LABEL_PATTERN}$`);
+const reservedStatementExpression = /^(?:erDiagram|(?:direction|style|classDef|class)\s.*)$/;
 
 const leftCardinalities: Readonly<Record<string, Cardinality>> = {
   '||': 'exactlyOne',
@@ -126,6 +127,11 @@ export function parseErDiagram(source: string): ParseResult {
       }
 
       block = { entityName, openedAtLine: lineNumber, hasAttributeLine: false };
+      continue;
+    }
+
+    if (isReservedStatement(content)) {
+      errors.push(createError('E13', 'Este recurso ainda não é suportado.', lineNumber));
       continue;
     }
 
@@ -229,6 +235,11 @@ function parseAttribute(
 
   const quoteResult = extractQuotedText(content, line, errors);
   if (!quoteResult) {
+    return;
+  }
+
+  if (hasNonAsciiCharacter(quoteResult.beforeQuote)) {
+    errors.push(createError('E13', 'Este recurso ainda não é suportado.', line));
     return;
   }
 
@@ -372,6 +383,11 @@ function parseLabel(rawLabel: string, line: number, errors: ParseError[]): strin
     return undefined;
   }
 
+  if (hasNonAsciiCharacter(rawLabel)) {
+    errors.push(createError('E13', 'Este recurso ainda não é suportado.', line));
+    return undefined;
+  }
+
   if (!simpleLabelExpression.test(rawLabel)) {
     errors.push(createError('E02', 'Instrução não reconhecida.', line));
     return undefined;
@@ -421,13 +437,32 @@ function classifyRelationship(
   return 'oneToOne';
 }
 
+/**
+ * Palavras reservadas do Mermaid e um segundo cabeçalho não são entidades.
+ * Uma linha que forma um relacionamento válido continua sendo relacionamento,
+ * pois a gramática não reserva esses nomes para entidades.
+ */
+function isReservedStatement(content: string): boolean {
+  if (!reservedStatementExpression.test(content)) {
+    return false;
+  }
+
+  const relationshipMatch = content.match(relationshipPrefixExpression);
+  return !relationshipMatch || !relationshipOperatorExpression.test(relationshipMatch[2]);
+}
+
 function isOutsideMvpFeature(content: string): boolean {
   return (
-    /^(---|direction\b|style\b|classDef\b|class\b|subgraph\b|end$)/.test(content) ||
+    /^(---|subgraph\b|end$)/.test(content) ||
     /^"/.test(content) ||
     /^[A-Za-z_][A-Za-z0-9_-]*\[/.test(content) ||
-    /\b(one or|zero or|many\(|optionally to\b|\bto\b)/.test(content)
+    /\b(one or|zero or|many\(|optionally to\b|\bto\b)/.test(content) ||
+    hasNonAsciiCharacter(content.split('"')[0])
   );
+}
+
+function hasNonAsciiCharacter(text: string): boolean {
+  return /[^\p{ASCII}]/u.test(text);
 }
 
 function hasUnsupportedAttributeType(content: string): boolean {
