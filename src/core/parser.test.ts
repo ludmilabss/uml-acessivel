@@ -220,4 +220,98 @@ erDiagram
 
     expect(result.errors.map((error) => error.code)).toEqual(['E08', 'E04', 'E14', 'E02']);
   });
+
+  it('explica o motivo de cada recurso fora do MVP', () => {
+    const result = parseErDiagram(`erDiagram
+  erDiagram
+  style CLIENTE fill:#f9f
+  PREÇO
+  CLIENTE {
+    varchar(10) nome
+    string endereço
+  }
+  CLIENTE ||..o{ PEDIDO : contém
+  p[Pessoa]
+  "MEU CLIENTE"
+  CLIENTE only one to zero or more PEDIDO : faz`);
+
+    expect(result.errors.map((error) => error.message)).toEqual([
+      'Linha 2: Só é permitido um diagrama por entrada; o cabeçalho erDiagram já aparece na linha 1.',
+      'Linha 3: O comando style não é suportado; recursos visuais estão fora do MVP.',
+      'Linha 4: Acentos e ç só são aceitos entre aspas.',
+      'Linha 6: Tipos com colchetes, parênteses ou ?, como varchar(10), não são suportados.',
+      'Linha 7: Acentos e ç só são aceitos entre aspas.',
+      'Linha 9: Rótulo com acento deve ficar entre aspas, por exemplo "contém".',
+      'Linha 10: Alias de entidade, como p[Pessoa], não é suportado.',
+      'Linha 11: Nomes de entidade entre aspas não são suportados.',
+      'Linha 12: Cardinalidade em texto não é suportada; use os símbolos ||, |o, }o ou }| à esquerda e ||, o|, o{ ou |{ à direita.',
+    ]);
+    expect(result.errors.every((error) => error.code === 'E13')).toBe(true);
+  });
+
+  it('classifica relacionamentos pelas cardinalidades máximas e pela ligação', () => {
+    const result = parseErDiagram(`erDiagram
+  PESSOA ||--|| CPF : possui
+  PEDIDO }|..|| CLIENTE : pertence
+  ALUNO }o..o{ CURSO : cursa
+  PEDIDO ||--o| NOTA_FISCAL : gera`);
+
+    expect(result.errors).toEqual([]);
+    expect(
+      result.diagram?.relationships.map(({ leftCardinality, rightCardinality, kind, classification }) => ({
+        leftCardinality,
+        rightCardinality,
+        kind,
+        classification,
+      })),
+    ).toEqual([
+      {
+        leftCardinality: 'exactlyOne',
+        rightCardinality: 'exactlyOne',
+        kind: 'identifying',
+        classification: 'oneToOne',
+      },
+      {
+        leftCardinality: 'oneOrMany',
+        rightCardinality: 'exactlyOne',
+        kind: 'nonIdentifying',
+        classification: 'manyToOne',
+      },
+      {
+        leftCardinality: 'zeroOrMany',
+        rightCardinality: 'zeroOrMany',
+        kind: 'nonIdentifying',
+        classification: 'manyToMany',
+      },
+      {
+        leftCardinality: 'exactlyOne',
+        rightCardinality: 'zeroOrOne',
+        kind: 'identifying',
+        classification: 'oneToOne',
+      },
+    ]);
+  });
+
+  it('aceita quebras de linha do Windows, tabs e rótulo entre aspas com espaço', () => {
+    const result = parseErDiagram(
+      'erDiagram\r\n\tPRODUTO ||..o{ ITEM\t:\t"aparece em"\r\n\tPRODUTO {\r\n\t\tstring\tcodigo\tUK\r\n\t}',
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagram?.relationships[0]).toMatchObject({ label: 'aparece em', line: 2 });
+    expect(result.diagram?.entities[0].attributes[0]).toMatchObject({
+      name: 'codigo',
+      keys: ['UK'],
+      line: 4,
+    });
+  });
+
+  it('informa cabeçalho que aparece depois de outra instrução', () => {
+    const result = parseErDiagram(`%% comentário inicial
+
+CLIENTE
+erDiagram`);
+
+    expect(result.errors).toEqual([expect.objectContaining({ code: 'E01', line: 3 })]);
+  });
 });

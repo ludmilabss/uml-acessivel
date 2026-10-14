@@ -32,6 +32,11 @@ const relationshipOperatorExpression = /^(\|\||\|o|}\||}o)(--|\.\.)(\|\||o\||\|\
 const simpleLabelExpression = new RegExp(`^${SIMPLE_LABEL_PATTERN}$`);
 const reservedStatementExpression = /^(?:erDiagram|(?:direction|style|classDef|class)\s.*)$/;
 
+const ACCENT_MESSAGE = 'Acentos e ç só são aceitos entre aspas.';
+const ACCENTED_LABEL_MESSAGE = 'Rótulo com acento deve ficar entre aspas, por exemplo "contém".';
+const UNSUPPORTED_TYPE_MESSAGE =
+  'Tipos com colchetes, parênteses ou ?, como varchar(10), não são suportados.';
+
 const leftCardinalities: Readonly<Record<string, Cardinality>> = {
   '||': 'exactlyOne',
   '|o': 'zeroOrOne',
@@ -130,8 +135,9 @@ export function parseErDiagram(source: string): ParseResult {
       continue;
     }
 
-    if (isReservedStatement(content)) {
-      errors.push(createError('E13', 'Este recurso ainda não é suportado.', lineNumber));
+    const reservedStatementReason = describeReservedStatement(content, headerLine);
+    if (reservedStatementReason) {
+      errors.push(createError('E13', reservedStatementReason, lineNumber));
       continue;
     }
 
@@ -153,8 +159,9 @@ export function parseErDiagram(source: string): ParseResult {
       continue;
     }
 
-    if (isOutsideMvpFeature(content)) {
-      errors.push(createError('E13', 'Este recurso ainda não é suportado.', lineNumber));
+    const outsideMvpReason = describeOutsideMvpFeature(content);
+    if (outsideMvpReason) {
+      errors.push(createError('E13', outsideMvpReason, lineNumber));
     } else {
       errors.push(createError('E02', 'Instrução não reconhecida.', lineNumber));
     }
@@ -229,7 +236,7 @@ function parseAttribute(
   errors: ParseError[],
 ): void {
   if (hasUnsupportedAttributeType(content)) {
-    errors.push(createError('E13', 'Este recurso ainda não é suportado.', line));
+    errors.push(createError('E13', UNSUPPORTED_TYPE_MESSAGE, line));
     return;
   }
 
@@ -239,7 +246,7 @@ function parseAttribute(
   }
 
   if (hasNonAsciiCharacter(quoteResult.beforeQuote)) {
-    errors.push(createError('E13', 'Este recurso ainda não é suportado.', line));
+    errors.push(createError('E13', ACCENT_MESSAGE, line));
     return;
   }
 
@@ -384,7 +391,7 @@ function parseLabel(rawLabel: string, line: number, errors: ParseError[]): strin
   }
 
   if (hasNonAsciiCharacter(rawLabel)) {
-    errors.push(createError('E13', 'Este recurso ainda não é suportado.', line));
+    errors.push(createError('E13', ACCENTED_LABEL_MESSAGE, line));
     return undefined;
   }
 
@@ -441,24 +448,53 @@ function classifyRelationship(
  * Palavras reservadas do Mermaid e um segundo cabeçalho não são entidades.
  * Uma linha que forma um relacionamento válido continua sendo relacionamento,
  * pois a gramática não reserva esses nomes para entidades.
+ * Devolve o motivo do erro E13, ou undefined quando a linha não é reservada.
  */
-function isReservedStatement(content: string): boolean {
+function describeReservedStatement(content: string, headerLine: number): string | undefined {
   if (!reservedStatementExpression.test(content)) {
-    return false;
+    return undefined;
   }
 
   const relationshipMatch = content.match(relationshipPrefixExpression);
-  return !relationshipMatch || !relationshipOperatorExpression.test(relationshipMatch[2]);
+  if (relationshipMatch && relationshipOperatorExpression.test(relationshipMatch[2])) {
+    return undefined;
+  }
+
+  if (content === 'erDiagram') {
+    return `Só é permitido um diagrama por entrada; o cabeçalho erDiagram já aparece na linha ${headerLine}.`;
+  }
+
+  const command = content.split(/\s/)[0];
+  return `O comando ${command} não é suportado; recursos visuais estão fora do MVP.`;
 }
 
-function isOutsideMvpFeature(content: string): boolean {
-  return (
-    /^(---|subgraph\b|end$)/.test(content) ||
-    /^"/.test(content) ||
-    /^[A-Za-z_][A-Za-z0-9_-]*\[/.test(content) ||
-    /\b(one or|zero or|many\(|optionally to\b|\bto\b)/.test(content) ||
-    hasNonAsciiCharacter(content.split('"')[0])
-  );
+/** Devolve o motivo do erro E13, ou undefined quando a linha é apenas desconhecida (E02). */
+function describeOutsideMvpFeature(content: string): string | undefined {
+  if (content.startsWith('---')) {
+    return 'Configuração com --- (frontmatter) não é suportada.';
+  }
+
+  if (/^subgraph\b/.test(content)) {
+    return 'O comando subgraph não é suportado.';
+  }
+
+  if (content.startsWith('"')) {
+    return 'Nomes de entidade entre aspas não são suportados.';
+  }
+
+  if (/^[A-Za-z_][A-Za-z0-9_-]*\[/.test(content)) {
+    return 'Alias de entidade, como p[Pessoa], não é suportado.';
+  }
+
+  if (hasNonAsciiCharacter(content.split('"')[0])) {
+    return ACCENT_MESSAGE;
+  }
+
+  if (/\b(one or|zero or|many\(|optionally to\b|\bto\b)/.test(content)) {
+    return 'Cardinalidade em texto não é suportada; use os símbolos ||, |o, }o ou }| à esquerda e ||, o|, o{ ou |{ à direita.';
+  }
+
+  return undefined;
 }
 
 function hasNonAsciiCharacter(text: string): boolean {

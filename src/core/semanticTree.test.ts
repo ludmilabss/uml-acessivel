@@ -71,9 +71,11 @@ describe('buildSemanticTree', () => {
       line: 4,
       reference: { kind: 'entity', entityName: 'CLIENTE' },
     });
-    expect(cliente?.children.map((node) => node.label)).toEqual([
-      'Atributos (2)',
-      'Relacionamentos (1)',
+    expect(
+      cliente?.children.map(({ label, description }) => ({ label, description })),
+    ).toEqual([
+      { label: 'Atributos (2)', description: '2 atributos.' },
+      { label: 'Relacionamentos (1)', description: '1 relacionamento.' },
     ]);
     expect(findNode(tree, 'entity:CLIENTE:attribute:id')).toMatchObject({
       kind: 'attribute',

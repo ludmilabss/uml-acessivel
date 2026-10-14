@@ -57,7 +57,6 @@ export function buildSemanticTree(diagram: Diagram): SemanticNode {
       createGroupNode(
         'entities',
         'entityGroup',
-        'Entidades',
         diagram.entities.map((entity) => createEntityNode(entity, diagram.relationships)),
       ),
     );
@@ -68,7 +67,6 @@ export function buildSemanticTree(diagram: Diagram): SemanticNode {
       createGroupNode(
         'relationships',
         'relationshipGroup',
-        'Relacionamentos',
         diagram.relationships.map((relationship, index) =>
           createRelationshipNode(relationship, index, `relationship:${index}`),
         ),
@@ -90,17 +88,31 @@ export function entityNodeId(entityName: string): string {
   return `entity:${entityName}`;
 }
 
+type GroupKind = Extract<SemanticNodeKind, 'entityGroup' | 'attributeGroup' | 'relationshipGroup'>;
+
+const groupNames: Readonly<
+  Record<GroupKind, { readonly title: string; readonly singular: string; readonly plural: string }>
+> = {
+  entityGroup: { title: 'Entidades', singular: 'entidade', plural: 'entidades' },
+  attributeGroup: { title: 'Atributos', singular: 'atributo', plural: 'atributos' },
+  relationshipGroup: {
+    title: 'Relacionamentos',
+    singular: 'relacionamento',
+    plural: 'relacionamentos',
+  },
+};
+
 function createGroupNode(
   id: string,
-  kind: SemanticNodeKind,
-  title: string,
+  kind: GroupKind,
   children: readonly SemanticNode[],
 ): SemanticNode {
+  const names = groupNames[kind];
   return {
     id,
     kind,
-    label: `${title} (${children.length})`,
-    description: describeGroup(title, children.length),
+    label: `${names.title} (${children.length})`,
+    description: describeGroup(children.length, names.singular, names.plural),
     children,
   };
 }
@@ -122,7 +134,6 @@ function createEntityNode(
       createGroupNode(
         `${id}:attributes`,
         'attributeGroup',
-        'Atributos',
         entity.attributes.map((attribute) => createAttributeNode(attribute, entity.name, id)),
       ),
     );
@@ -133,7 +144,6 @@ function createEntityNode(
       createGroupNode(
         `${id}:relationships`,
         'relationshipGroup',
-        'Relacionamentos',
         relatedIndexes.map((index) => {
           const relationship = relationships[index];
           const otherEntity =

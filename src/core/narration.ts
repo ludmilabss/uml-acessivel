@@ -60,8 +60,9 @@ export function describeDiagram(diagram: Diagram): string {
   return `Diagrama ER com ${entityCount} e ${relationshipCount}.`;
 }
 
-export function describeGroup(title: string, itemCount: number): string {
-  return `${title}, ${countText(itemCount, 'item', 'itens')}.`;
+/** Ex.: "3 entidades." O nome do grupo já aparece no texto visível do nó. */
+export function describeGroup(itemCount: number, singular: string, plural: string): string {
+  return `${countText(itemCount, singular, plural)}.`;
 }
 
 /**
