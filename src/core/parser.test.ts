@@ -152,6 +152,18 @@ erDiagram
     expect(result.errors.map((error) => error.code)).toEqual(['E07', 'E06', 'E11']);
   });
 
+  it('rejeita rótulo com texto fora das aspas em vez de descartar o relacionamento', () => {
+    const result = parseErDiagram(`erDiagram
+  CLIENTE ||..o{ PEDIDO : faz "pedido"
+  CLIENTE ||..o{ PEDIDO : "faz" pedido`);
+
+    expect(result.diagram).toBeUndefined();
+    expect(result.errors).toEqual([
+      expect.objectContaining({ code: 'E02', line: 2 }),
+      expect.objectContaining({ code: 'E02', line: 3 }),
+    ]);
+  });
+
   it('rejeita recursos fora do MVP', () => {
     const result = parseErDiagram(`erDiagram
   direction LR

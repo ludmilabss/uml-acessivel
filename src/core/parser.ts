@@ -387,6 +387,9 @@ function parseLabel(rawLabel: string, line: number, errors: ParseError[]): strin
   }
 
   if (rawLabel.includes('"')) {
+    if (quoted) {
+      errors.push(createError('E02', 'Instrução não reconhecida.', line));
+    }
     return undefined;
   }
 
