@@ -1,1 +1,21 @@
 @import 'tailwindcss';
+
+/* Indicador de foco grosso e com contraste, visível também com zoom e baixa visão. */
+.focus-ring:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/*
+ * Na árvore, o foco fica no <li>, que também contém os filhos.
+ * O contorno vai só na linha do item, para não envolver o grupo inteiro.
+ */
+.tree-item {
+  outline: none;
+}
+
+.tree-item:focus > .tree-row {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 1px;
+  background-color: #dbeafe;
+}
