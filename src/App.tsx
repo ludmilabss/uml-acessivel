@@ -7,20 +7,30 @@ import { ErrorList } from './ui/ErrorList';
 import { exampleDiagram } from './ui/exampleDiagram';
 import { SemanticTree } from './ui/SemanticTree';
 import { lineRange } from './ui/textPosition';
-import { loadTheme, saveTheme, themeNames, type Theme } from './ui/theme';
+import {
+  loadShowPreview,
+  loadTheme,
+  saveShowPreview,
+  saveTheme,
+  themeNames,
+  type Theme,
+} from './ui/preferences';
 
 const EDITOR_ID = 'codigo-diagrama';
 const EDITOR_HINT_ID = 'codigo-diagrama-dica';
 const ERRORS_ID = 'codigo-diagrama-erros';
+const TREE_HINT_ID = 'arvore-instrucoes';
 
 function App() {
   const [source, setSource] = useState(exampleDiagram);
   const [result, setResult] = useState(() => parseErDiagram(exampleDiagram));
-  // Muda a cada interpretação: recria a árvore (foco e expansão do zero) e força um novo anúncio.
+  // Muda a cada interpretação: recria a árvore, com foco e expansão do zero.
   const [version, setVersion] = useState(0);
-  const [announcement, setAnnouncement] = useState('');
+  // O id muda a cada anúncio, para o leitor de tela repetir mesmo um texto igual ao anterior.
+  const [announcement, setAnnouncement] = useState({ id: 0, text: '' });
   const [focusedDescription, setFocusedDescription] = useState<string>();
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [showPreview, setShowPreview] = useState(loadShowPreview);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -28,17 +38,35 @@ function App() {
     saveTheme(theme);
   }, [theme]);
 
+  useEffect(() => {
+    saveShowPreview(showPreview);
+  }, [showPreview]);
+
   const tree = useMemo(
     () => (result.diagram ? buildSemanticTree(result.diagram) : undefined),
     [result],
   );
   const hasErrors = result.errors.length > 0;
 
+  function announce(text: string) {
+    setAnnouncement((current) => ({ id: current.id + 1, text }));
+  }
+
+  function togglePreview() {
+    const next = !showPreview;
+    setShowPreview(next);
+    announce(
+      next
+        ? 'Visualização visível, abaixo da árvore.'
+        : 'Visualização oculta. A árvore ocupa a coluna inteira.',
+    );
+  }
+
   function interpret() {
     const next = parseErDiagram(source);
     setResult(next);
     setVersion((current) => current + 1);
-    setAnnouncement(describeParseResult(next));
+    announce(describeParseResult(next));
     setFocusedDescription(undefined);
   }
 
@@ -67,7 +95,7 @@ function App() {
       <div className="flex flex-wrap items-center gap-3 border-b-2 border-line bg-surface px-6 py-2">
         <label className="flex items-center gap-2 font-semibold">
           Tema
-          {/* A seta nativa fica colada na borda e não dá para afastar; usamos uma própria, na cor do tema. */}
+          {/* Seta própria: a nativa fica colada na borda e não pode ser afastada. */}
           <span className="relative inline-flex items-center">
             <select
               value={theme}
@@ -92,14 +120,35 @@ function App() {
             </svg>
           </span>
         </label>
+        {/* O nome fica fixo; o estado vai no aria-pressed. */}
+        <button
+          type="button"
+          aria-pressed={showPreview}
+          className={`focus-ring rounded-sm border-2 px-3 py-1 font-semibold ${
+            showPreview
+              ? 'border-accent bg-accent text-accent-fg'
+              : 'border-muted bg-raised text-fg'
+          }`}
+          onClick={togglePreview}
+        >
+          {/* O estado também aparece em forma, não só em cor. */}
+          <span aria-hidden="true">{showPreview ? '✓ ' : '○ '}</span>
+          Mostrar visualização
+        </button>
       </div>
 
-      <main className="grid flex-1 grid-cols-1 bg-surface lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:grid-rows-[minmax(0,3fr)_minmax(0,2fr)]">
+      <main
+        className={`grid flex-1 grid-cols-1 bg-surface lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] ${
+          showPreview
+            ? 'lg:grid-rows-[minmax(0,3fr)_minmax(0,2fr)]'
+            : 'lg:grid-rows-[minmax(0,1fr)]'
+        }`}
+      >
         <Panel
           number={1}
           titleId="titulo-codigo"
           title="Código do diagrama"
-          className="lg:row-span-2 lg:border-r-2"
+          className={`lg:border-r-2 ${showPreview ? 'lg:row-span-2' : ''}`}
         >
           <DiagramEditor
             id={EDITOR_ID}
@@ -130,18 +179,24 @@ function App() {
           number={2}
           titleId="titulo-arvore"
           title="Árvore semântica"
-          className="lg:border-b-2"
+          className={showPreview ? 'lg:border-b-2' : ''}
         >
-          <details className="text-muted">
-            <summary className="focus-ring cursor-pointer rounded-sm font-semibold">
-              Como navegar pelo teclado
+          {/* Lida pelo leitor de tela ao chegar na árvore (aria-describedby), onde a ajuda é útil. */}
+          <p id={TREE_HINT_ID} className="sr-only">
+            Use as setas para navegar. Seta para a direita abre um grupo. Enter em um relacionamento
+            leva à outra entidade.
+          </p>
+          <details className="rounded-sm border-2 border-line bg-raised">
+            <summary className="focus-ring cursor-pointer rounded-sm px-3 py-1.5 font-semibold">
+              Atalhos de teclado da árvore
             </summary>
-            <ul className="mt-1 list-disc pl-5">
-              <li>Seta para cima e para baixo: item anterior e próximo</li>
-              <li>Seta para a direita: abre o grupo ou entra no primeiro item</li>
-              <li>Seta para a esquerda: fecha o grupo ou volta para o item pai</li>
-              <li>Home e End: primeiro e último item</li>
-              <li>Enter em um relacionamento (↳): vai até a outra entidade</li>
+            <ul className="flex flex-col gap-2 px-3 pt-1 pb-3">
+              {treeShortcuts.map(({ keys, name, action }) => (
+                <li key={name} className="flex items-baseline gap-3">
+                  <KeyCaps keys={keys} />
+                  <span>{`${name}: ${action}`}</span>
+                </li>
+              ))}
             </ul>
           </details>
           <div className="lg:min-h-0 lg:flex-1 lg:overflow-auto">
@@ -150,6 +205,7 @@ function App() {
                 key={version}
                 tree={tree}
                 labelledBy="titulo-arvore"
+                describedBy={TREE_HINT_ID}
                 onFocusChange={setFocusedDescription}
               />
             ) : (
@@ -158,21 +214,23 @@ function App() {
           </div>
         </Panel>
 
-        <Panel number={3} titleId="titulo-visualizacao" title="Visualização (SVG)">
-          <DiagramPreview />
-        </Panel>
+        {showPreview && (
+          <Panel number={3} titleId="titulo-visualizacao" title="Visualização (SVG)">
+            <DiagramPreview />
+          </Panel>
+        )}
       </main>
 
       <footer className="border-t-2 border-line bg-surface px-6 py-2">
         {/* Região sempre presente no DOM: o leitor de tela só anuncia mudanças em regiões que já existiam. */}
         <p role="status" aria-live="polite" className="font-semibold">
-          <span key={version}>{announcement}</span>
+          <span key={announcement.id}>{announcement.text}</span>
         </p>
         {/* Para quem enxerga: repete a narração do item focado. Não é aria-live, pois o leitor já lê o foco. */}
         <p className="text-muted">
           {focusedDescription
             ? `Foco: ${focusedDescription}`
-            : !announcement && 'Interprete o código ou navegue pela árvore.'}
+            : !announcement.text && 'Interprete o código ou navegue pela árvore.'}
         </p>
       </footer>
     </div>
@@ -199,6 +257,34 @@ function Panel({ number, titleId, title, className = '', children }: PanelProps)
       </h2>
       {children}
     </section>
+  );
+}
+
+/**
+ * Cada atalho é lido como uma frase contínua. Sem negrito ou outro elemento no meio,
+ * porque o VoiceOver dividiria a frase em duas paradas.
+ */
+const treeShortcuts: readonly { keys: readonly string[]; name: string; action: string }[] = [
+  { keys: ['↑', '↓'], name: 'Setas para cima e para baixo', action: 'item anterior e próximo' },
+  { keys: ['→'], name: 'Seta para a direita', action: 'abre o grupo ou entra no primeiro item' },
+  { keys: ['←'], name: 'Seta para a esquerda', action: 'fecha o grupo ou volta para o item pai' },
+  { keys: ['Home', 'End'], name: 'Home e End', action: 'primeiro e último item' },
+  { keys: ['Enter'], name: 'Enter', action: 'em um relacionamento, vai até a outra entidade' },
+  { keys: ['Tab'], name: 'Tab', action: 'sai da árvore' },
+];
+
+function KeyCaps({ keys }: { readonly keys: readonly string[] }) {
+  return (
+    <span aria-hidden="true" className="flex w-28 shrink-0 gap-1">
+      {keys.map((key) => (
+        <kbd
+          key={key}
+          className="min-w-8 rounded-sm border-2 border-muted bg-surface px-1.5 text-center font-sans text-lg leading-snug font-bold"
+        >
+          {key}
+        </kbd>
+      ))}
+    </span>
   );
 }
 

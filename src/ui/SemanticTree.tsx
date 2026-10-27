@@ -12,6 +12,8 @@ interface SemanticTreeProps {
   readonly tree: SemanticNode;
   /** Id do título que nomeia a árvore para o leitor de tela. */
   readonly labelledBy: string;
+  /** Id de um texto com instruções de uso, lido pelo leitor de tela ao chegar na árvore. */
+  readonly describedBy?: string;
   /** Avisa o texto lido do item focado (ou undefined quando o foco sai da árvore). */
   readonly onFocusChange?: (spokenText: string | undefined) => void;
 }
@@ -24,7 +26,7 @@ interface SemanticTreeProps {
  * da árvore com uma única parada, e as setas movem o foco dentro dela.
  * Para começar do zero quando o diagrama muda, o componente pai troca a `key`.
  */
-export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreeProps) {
+export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: SemanticTreeProps) {
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() =>
     initialExpandedIds(tree),
   );
@@ -63,7 +65,6 @@ export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreePr
     });
   }
 
-  /** Enter em um relacionamento: abre o caminho até a entidade de destino e leva o foco até ela. */
   function jumpTo(targetId: string) {
     setExpandedIds((previous) => new Set([...previous, ...ancestorIds(targetId, parents)]));
     moveFocus(targetId);
@@ -120,15 +121,18 @@ export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreePr
   }
 
   /**
-   * O nome lido começa pelo texto visível (WCAG 2.5.3), para quem usa controle por voz
-   * poder falar o que vê. Nos grupos, o texto visível já diz tudo: "Entidades (4)".
+   * Começa pelo texto visível (WCAG 2.5.3), para o controle por voz.
+   * Sem ponto final: o leitor de tela já pausa antes do estado ("expandido").
    */
   function accessibleName(node: SemanticNode): string {
     if (isGroup(node)) {
       return node.label;
     }
     const target = node.targetId ? findNode(tree, node.targetId) : undefined;
-    return target ? `${node.description} Enter leva à entidade ${target.label}.` : node.description;
+    const text = target
+      ? `${node.description} Enter leva à entidade ${target.label}`
+      : node.description;
+    return text.replace(/\.$/, '');
   }
 
   function renderNode(node: SemanticNode, level: number, position: number, setSize: number) {
@@ -145,14 +149,15 @@ export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreePr
             itemRefs.current.delete(node.id);
           }
         }}
+        // Sem aria-selected, que faria o leitor repetir "selecionado" em todo item.
+        // O WAI-ARIA 1.2 não o exige em treeitem; a regra do jsx-a11y está desatualizada.
+        // eslint-disable-next-line jsx-a11y/role-has-required-aria-props
         role="treeitem"
         aria-label={accessibleName(node)}
         aria-level={level}
         aria-posinset={position}
         aria-setsize={setSize}
         aria-expanded={hasChildren ? isExpanded : undefined}
-        // Seleção única que acompanha o foco: o item selecionado é o que está focado.
-        aria-selected={node.id === focusedId}
         tabIndex={node.id === focusedId ? 0 : -1}
         className="tree-item"
         onKeyDown={(event) => handleKeyDown(event, node)}
@@ -170,17 +175,17 @@ export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreePr
           }
         }}
       >
+        {/* Só visual: o leitor de tela lê o aria-label do item e não deve parar neste texto. */}
         <span
+          aria-hidden="true"
           className={`tree-row flex cursor-pointer items-baseline gap-2 rounded-sm border-[3px] border-transparent py-0.5 pr-2 font-mono ${
             node.kind === 'attribute' || node.kind === 'relationship' ? '' : 'font-bold'
           } ${node.targetId ? 'text-accent' : ''}`}
           style={{ paddingLeft: `${(level - 1) * 1.25 + 0.25}rem` }}
         >
-          <span aria-hidden="true" className="w-4 shrink-0 text-center">
-            {rowMarker(node, isExpanded)}
-          </span>
+          <span className="w-4 shrink-0 text-center">{rowMarker(node, isExpanded)}</span>
           <span>
-            {node.kind === 'entity' && <span aria-hidden="true">Entidade · </span>}
+            {node.kind === 'entity' && 'Entidade · '}
             {node.label}
           </span>
         </span>
@@ -199,6 +204,7 @@ export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreePr
     <ul
       role="tree"
       aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
       className="text-base"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {

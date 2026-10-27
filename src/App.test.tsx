@@ -34,7 +34,12 @@ describe('App', () => {
     for (const name of ['Código do diagrama', 'Árvore semântica', 'Visualização (SVG)']) {
       expect(screen.getByRole('heading', { level: 2, name })).toBeTruthy();
     }
-    expect(screen.getByRole('tree', { name: 'Árvore semântica' })).toBeTruthy();
+    expect(
+      screen.getByRole('tree', {
+        name: 'Árvore semântica',
+        description: /^Use as setas para navegar\./,
+      }),
+    ).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('');
   });
 
@@ -102,5 +107,56 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
     expect(screen.queryByText(/^Foco:/)).toBeNull();
+  });
+
+  it('oculta e mostra a visualização pelo botão de alternância, e lembra a escolha', async () => {
+    const { user } = setup();
+    const toggle = screen.getByRole('button', { name: 'Mostrar visualização' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('heading', { level: 2, name: 'Visualização (SVG)' })).toBeTruthy();
+
+    await user.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('heading', { level: 2, name: 'Visualização (SVG)' })).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe(
+      'Visualização oculta. A árvore ocupa a coluna inteira.',
+    );
+    expect(screen.getByRole('tree', { name: 'Árvore semântica' })).toBeTruthy();
+
+    cleanup();
+    render(<App />);
+    expect(
+      screen.getByRole('button', { name: 'Mostrar visualização' }).getAttribute('aria-pressed'),
+    ).toBe('false');
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
+    expect(screen.getByRole('status').textContent).toBe('Visualização visível, abaixo da árvore.');
+    expect(screen.getByRole('heading', { level: 2, name: 'Visualização (SVG)' })).toBeTruthy();
+  });
+
+  it('não recria a árvore ao alternar a visualização (o foco e os grupos abertos continuam)', async () => {
+    const { user } = setup();
+    const cliente = screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ });
+    cliente.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(cliente.getAttribute('aria-expanded')).toBe('true');
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
+    expect(
+      screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ }).getAttribute('aria-expanded'),
+    ).toBe('true');
+  });
+
+  it('lista os atalhos da árvore em frases visíveis, com o nome das teclas por extenso', async () => {
+    const { user } = setup();
+    await user.click(screen.getByText('Atalhos de teclado da árvore'));
+
+    const shortcut = screen
+      .getByText('Setas para cima e para baixo: item anterior e próximo')
+      .closest('li')!;
+    expect(shortcut.querySelector('[aria-hidden="true"]')?.textContent).toBe('↑↓');
+    // Um único trecho de texto, sem elementos no meio, para o VoiceOver ler a frase de uma vez.
+    const sentence = shortcut.querySelector('span:not([aria-hidden])')!;
+    expect(sentence.childNodes).toHaveLength(1);
   });
 });

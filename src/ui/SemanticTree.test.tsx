@@ -51,6 +51,14 @@ describe('SemanticTree', () => {
     expect(item('Relacionamentos (1)')).toBeTruthy();
   });
 
+  it('não repete "selecionado" nem termina o nome com ponto (o leitor já pausa antes do estado)', () => {
+    setup();
+    for (const treeitem of screen.getAllByRole('treeitem')) {
+      expect(treeitem.hasAttribute('aria-selected')).toBe(false);
+      expect(treeitem.getAttribute('aria-label')).not.toMatch(/\.$/);
+    }
+  });
+
   it('tem uma única parada de Tab (roving tabindex)', async () => {
     const { user } = setup();
 
@@ -61,7 +69,6 @@ describe('SemanticTree', () => {
 
     await user.tab();
     expect(document.activeElement).toBe(item(/^Diagrama ER/));
-    expect(item(/^Diagrama ER/).getAttribute('aria-selected')).toBe('true');
   });
 
   it('move o foco com as setas, abre e fecha grupos', async () => {
@@ -112,7 +119,7 @@ describe('SemanticTree', () => {
     // Diagrama → Entidades → CLIENTE → (abre) → Atributos → Relacionamentos → (abre) → relacionamento
     await user.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}{ArrowRight}{ArrowDown}');
     await user.keyboard('{ArrowRight}{ArrowRight}');
-    const relationship = item(/Enter leva à entidade PEDIDO\.$/);
+    const relationship = item(/Enter leva à entidade PEDIDO$/);
     expect(document.activeElement).toBe(relationship);
 
     await user.keyboard('{Enter}');

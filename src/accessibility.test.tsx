@@ -5,7 +5,10 @@ import axe from 'axe-core';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 /** Roda o axe-core na página. O contraste de cor não é medido no jsdom (fica para o teste manual). */
 async function axeViolations(container: Element) {
@@ -28,6 +31,14 @@ describe('acessibilidade (axe-core)', () => {
     await user.click(editor);
     await user.paste('erDiagram\n  CLIENTE ||..o{ PEDIDO');
     await user.keyboard('{Control>}{Enter}{/Control}');
+
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('não tem violações com a visualização oculta', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
 
     expect(await axeViolations(container)).toEqual([]);
   });
