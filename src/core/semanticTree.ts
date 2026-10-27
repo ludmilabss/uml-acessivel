@@ -117,10 +117,7 @@ function createGroupNode(
   };
 }
 
-function createEntityNode(
-  entity: Entity,
-  relationships: readonly Relationship[],
-): SemanticNode {
+function createEntityNode(entity: Entity, relationships: readonly Relationship[]): SemanticNode {
   const id = entityNodeId(entity.name);
   const relatedIndexes = relationships.flatMap((relationship, index) =>
     relationship.leftEntity === entity.name || relationship.rightEntity === entity.name

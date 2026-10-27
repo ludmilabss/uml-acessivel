@@ -1,18 +1,10 @@
 export type AttributeKey = 'PK' | 'FK' | 'UK';
 
-export type Cardinality =
-  | 'exactlyOne'
-  | 'zeroOrOne'
-  | 'oneOrMany'
-  | 'zeroOrMany';
+export type Cardinality = 'exactlyOne' | 'zeroOrOne' | 'oneOrMany' | 'zeroOrMany';
 
 export type RelationshipKind = 'identifying' | 'nonIdentifying';
 
-export type RelationshipClassification =
-  | 'oneToOne'
-  | 'oneToMany'
-  | 'manyToOne'
-  | 'manyToMany';
+export type RelationshipClassification = 'oneToOne' | 'oneToMany' | 'manyToOne' | 'manyToMany';
 
 export interface Attribute {
   readonly type: string;
