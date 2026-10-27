@@ -1,7 +1,12 @@
 import { describeDiagram, type ParseResult } from '../core';
+import { forSpeech } from './pronunciation';
 
 /** Texto anunciado na região aria-live depois de interpretar o código. */
 export function describeParseResult(result: ParseResult): string {
+  return forSpeech(describe(result));
+}
+
+function describe(result: ParseResult): string {
   if (result.diagram) {
     return `Diagrama interpretado. ${describeDiagram(result.diagram)} A árvore foi atualizada.`;
   }

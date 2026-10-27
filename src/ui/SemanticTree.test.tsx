@@ -69,14 +69,59 @@ describe('SemanticTree', () => {
     const treeitems = screen.getAllByRole('treeitem');
     expect(treeitems.map((treeitem) => treeitem.getAttribute('aria-label'))).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/^Atributo id, tipo int, chave primária$/),
+        expect.stringMatching(/^id: int, chave primária$/),
         expect.stringMatching(/^CLIENTE, exatamente um, faz PEDIDO, zero ou muitos\./),
       ]),
     );
+    // Compara as palavras, sem a pontuação: é o que o controle por voz usa.
+    const words = (text: string) => text.match(/[\p{L}\p{N}]+/gu) ?? [];
     for (const treeitem of treeitems) {
-      const visible = treeitem.querySelector('.tree-row')!.textContent!.slice(1);
-      expect(treeitem.getAttribute('aria-label')!.startsWith(visible)).toBe(true);
+      const visible = words(treeitem.querySelector('.tree-row')!.textContent!);
+      const spoken = words(treeitem.getAttribute('aria-label')!);
+      expect(spoken.slice(0, visible.length)).toEqual(visible);
     }
+  });
+
+  it('destaca os nomes sem mudar as palavras da linha', async () => {
+    const { user } = setup();
+    await user.tab();
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}{ArrowRight}{ArrowRight}');
+
+    const attributeRow = item('id: int, chave primária').querySelector('.tree-row')!;
+    expect([...attributeRow.querySelectorAll('strong')].map((name) => name.textContent)).toEqual([
+      'id',
+    ]);
+    expect(attributeRow.textContent).toBe('·id : int chave primária');
+
+    const relationshipRow = item(
+      /^CLIENTE, exatamente um, faz PEDIDO, zero ou muitos\. Relacionamento um para muitos, não identificador$/,
+    ).querySelector('.tree-row')!;
+    expect([...relationshipRow.querySelectorAll('strong')].map((name) => name.textContent)).toEqual(
+      ['CLIENTE', 'PEDIDO'],
+    );
+  });
+
+  it('marca com a cor de destaque só a entidade para onde o Enter leva', async () => {
+    const { user } = setup();
+    await user.tab();
+    // Diagrama → Entidades → CLIENTE → (abre) → Atributos → Relacionamentos → (abre)
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}{ArrowRight}{ArrowDown}{ArrowRight}');
+
+    const row = item(/Pressione Enter para ir até a entidade PEDIDO$/).querySelector('.tree-row')!;
+    const accented = [...row.querySelectorAll('strong.text-accent')].map(
+      (name) => name.textContent,
+    );
+    expect(accented).toEqual(['PEDIDO']);
+  });
+
+  it('lê nomes com sublinhado como palavras separadas, sem mudar a tela', () => {
+    const tree = buildSemanticTree(
+      parseErDiagram('erDiagram\n  ITEM_PEDIDO {\n    int pedido_id PK\n  }').diagram!,
+    );
+    render(<SemanticTree tree={tree} labelledBy="inexistente" />);
+
+    const entity = item(/^Entidade: ITEM PEDIDO\./);
+    expect(entity.querySelector('.tree-row')!.textContent).toContain('ITEM_PEDIDO');
   });
 
   it('tem uma única parada de Tab (roving tabindex)', async () => {
@@ -139,7 +184,7 @@ describe('SemanticTree', () => {
     // Diagrama → Entidades → CLIENTE → (abre) → Atributos → Relacionamentos → (abre) → relacionamento
     await user.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}{ArrowRight}{ArrowDown}');
     await user.keyboard('{ArrowRight}{ArrowRight}');
-    const relationship = item(/Enter leva à entidade PEDIDO$/);
+    const relationship = item(/Pressione Enter para ir até a entidade PEDIDO$/);
     expect(document.activeElement).toBe(relationship);
 
     await user.keyboard('{Enter}');

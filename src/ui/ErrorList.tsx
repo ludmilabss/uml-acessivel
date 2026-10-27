@@ -1,4 +1,5 @@
 import type { ParseError } from '../core';
+import { forSpeech } from './pronunciation';
 
 interface ErrorListProps {
   readonly id: string;
@@ -23,6 +24,7 @@ export function ErrorList({ id, errors, onSelectLine }: ErrorListProps) {
           <li key={`${error.line}-${error.code}-${index}`}>
             <button
               type="button"
+              aria-label={forSpeech(`${error.code} ${error.message}`)}
               className="focus-ring w-full rounded-sm px-1 py-0.5 text-left underline"
               onClick={() => onSelectLine(error.line)}
             >

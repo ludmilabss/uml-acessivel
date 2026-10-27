@@ -3,7 +3,7 @@ export const exampleDiagram = `erDiagram
   %% Exemplo: loja virtual
   CLIENTE ||..o{ PEDIDO : faz
   PEDIDO ||--|{ ITEM_PEDIDO : contem
-  PRODUTO ||..o{ ITEM_PEDIDO : "aparece em"
+  PRODUTO ||--o{ ITEM_PEDIDO : "aparece em"
 
   CLIENTE {
     int id PK

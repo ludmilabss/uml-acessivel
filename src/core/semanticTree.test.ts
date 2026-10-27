@@ -78,7 +78,7 @@ describe('buildSemanticTree', () => {
     expect(findNode(tree, 'entity:CLIENTE:attribute:id')).toMatchObject({
       kind: 'attribute',
       label: 'id: int [PK]',
-      description: 'Atributo id, tipo int, chave primária.',
+      description: 'id: int, chave primária.',
       line: 5,
       reference: { kind: 'attribute', entityName: 'CLIENTE', attributeName: 'id' },
     });

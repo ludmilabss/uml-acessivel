@@ -57,10 +57,10 @@ describe('narração', () => {
   }`);
 
     expect(diagram.entities[0].attributes.map(describeAttribute)).toEqual([
-      'Atributo id, tipo int, chave primária.',
-      'Atributo pedido_id, tipo int, chave primária e chave estrangeira.',
-      'Atributo codigo, tipo string, chave única. Comentário: código interno.',
-      'Atributo nome, tipo string.',
+      'id: int, chave primária.',
+      'pedido_id: int, chave primária e chave estrangeira.',
+      'codigo: string, chave única. Comentário: código interno.',
+      'nome: string.',
     ]);
   });
 

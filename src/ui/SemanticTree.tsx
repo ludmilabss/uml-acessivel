@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { SemanticNode } from '../core';
 import {
   ancestorIds,
@@ -7,6 +7,7 @@ import {
   flattenVisible,
   initialExpandedIds,
 } from './treeNavigation';
+import { forSpeech } from './pronunciation';
 
 interface SemanticTreeProps {
   readonly tree: SemanticNode;
@@ -35,6 +36,7 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
   const shouldMoveFocus = useRef(false);
 
   const parents = useMemo(() => buildParentMap(tree), [tree]);
+  const entityNames = useMemo(() => collectEntityNames(tree), [tree]);
   const visibleNodes = useMemo(() => flattenVisible(tree, expandedIds), [tree, expandedIds]);
 
   // O foco só muda depois da renderização, quando o item de destino já existe no DOM.
@@ -130,7 +132,7 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
     }
     const target = node.targetId ? findNode(tree, node.targetId) : undefined;
     const text = target
-      ? `${node.description} Enter leva à entidade ${target.label}`
+      ? `${node.description} Pressione Enter para ir até a entidade ${target.label}`
       : node.description;
     return text.replace(/\.$/, '');
   }
@@ -153,7 +155,7 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
         // O WAI-ARIA 1.2 não o exige em treeitem; a regra do jsx-a11y está desatualizada.
         // eslint-disable-next-line jsx-a11y/role-has-required-aria-props
         role="treeitem"
-        aria-label={accessibleName(node)}
+        aria-label={forSpeech(accessibleName(node))}
         aria-level={level}
         aria-posinset={position}
         aria-setsize={setSize}
@@ -178,13 +180,12 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
         {/* Só visual: o leitor de tela lê o aria-label do item e não deve parar neste texto. */}
         <span
           aria-hidden="true"
-          className={`tree-row flex cursor-pointer items-baseline gap-2 rounded-sm border-[3px] border-transparent py-0.5 pr-2 font-mono ${
-            node.kind === 'attribute' || node.kind === 'relationship' ? '' : 'font-bold'
-          } ${node.targetId ? 'text-accent' : ''}`}
+          // Negrito só nos nomes (em renderRowText); grupos ficam em peso normal.
+          className="tree-row flex cursor-pointer items-baseline gap-2 rounded-sm border-[3px] border-transparent py-0.5 pr-2"
           style={{ paddingLeft: `${(level - 1) * 1.25 + 0.25}rem` }}
         >
           <span className="w-4 shrink-0 text-center">{rowMarker(node, isExpanded)}</span>
-          <span>{visibleText(node)}</span>
+          <span>{renderRowText(node, entityNames, targetEntityName(tree, node))}</span>
         </span>
         {isExpanded && (
           <ul role="group">
@@ -231,6 +232,100 @@ function visibleText(node: SemanticNode): string {
   }
   const end = node.description.indexOf('. ');
   return (end === -1 ? node.description : node.description.slice(0, end)).replace(/\.$/, '');
+}
+
+/**
+ * Destaca os nomes (entidades e atributos) e deixa o resto da frase em cor secundária.
+ * Só muda o estilo: as palavras são as de visibleText, e o 2.5.3 continua cumprido.
+ */
+/** Nome da entidade para onde o Enter leva, quando o item tem destino. */
+function targetEntityName(tree: SemanticNode, node: SemanticNode): string | undefined {
+  const target = node.targetId ? findNode(tree, node.targetId) : undefined;
+  return target?.reference?.kind === 'entity' ? target.reference.entityName : undefined;
+}
+
+function renderRowText(
+  node: SemanticNode,
+  entityNames: ReadonlySet<string>,
+  targetName?: string,
+): ReactNode {
+  const text = visibleText(node);
+  if (node.reference?.kind === 'attribute') {
+    return renderAttributeText(node.reference.attributeName, text);
+  }
+  const names = namesToHighlight(node, entityNames);
+  if (names.size === 0) {
+    return text;
+  }
+
+  const highlighted = new Set<string>();
+  return text.split(/([A-Za-z_][A-Za-z0-9_-]*)/).map((part, index) => {
+    // Na entidade, só a primeira ocorrência é o nome ("Entidade: Entidade").
+    const isName = names.has(part) && (node.kind === 'relationship' || !highlighted.has(part));
+    if (isName) {
+      highlighted.add(part);
+      return (
+        // A cor de destaque marca só a entidade para onde o Enter leva.
+        <strong
+          key={index}
+          className={`font-mono ${part === targetName ? 'text-accent' : 'text-fg'}`}
+        >
+          {part}
+        </strong>
+      );
+    }
+    return (
+      <span key={index} className="text-muted">
+        {part}
+      </span>
+    );
+  });
+}
+
+/**
+ * Forma de diagrama ER: nome : tipo e a chave numa etiqueta. As palavras são as da
+ * narração ("id: int, chave primária"), só a pontuação muda.
+ */
+function renderAttributeText(name: string, text: string): ReactNode {
+  const [type, ...keys] = text.slice(name.length + 2).split(', ');
+  return (
+    <>
+      <strong className="font-mono text-fg">{name}</strong>
+      <span className="text-muted"> : </span>
+      <span className="font-mono">{type}</span>
+      {keys.length > 0 && ' '}
+      {keys.length > 0 && (
+        <span className="ml-1 rounded-sm border border-muted px-1.5 text-muted">
+          {keys.join(', ')}
+        </span>
+      )}
+    </>
+  );
+}
+
+function namesToHighlight(node: SemanticNode, entityNames: ReadonlySet<string>): Set<string> {
+  switch (node.reference?.kind) {
+    case 'entity':
+      return new Set([node.reference.entityName]);
+    case 'attribute':
+      return new Set([node.reference.attributeName]);
+    case 'relationship':
+      return new Set(entityNames);
+    default:
+      return new Set();
+  }
+}
+
+function collectEntityNames(tree: SemanticNode): Set<string> {
+  const names = new Set<string>();
+  const visit = (node: SemanticNode) => {
+    if (node.reference?.kind === 'entity') {
+      names.add(node.reference.entityName);
+    }
+    node.children.forEach(visit);
+  };
+  visit(tree);
+  return names;
 }
 
 function isGroup(node: SemanticNode): boolean {

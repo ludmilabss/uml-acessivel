@@ -9,6 +9,7 @@ import {
 } from './treeNavigation';
 import { lineRange } from './textPosition';
 import { describeParseResult } from './announcements';
+import { forSpeech } from './pronunciation';
 
 const tree = buildSemanticTree(
   parseErDiagram(`erDiagram
@@ -82,6 +83,23 @@ describe('describeParseResult', () => {
       describeParseResult(parseErDiagram('erDiagram\n  A ||..o{ B\n  C ||xxo{ D : x')),
     ).toMatch(
       /^2 erros de sintaxe\. Linha 2: .* Código E07\. Veja a lista de erros abaixo do campo\.$/,
+    );
+  });
+});
+
+describe('forSpeech', () => {
+  it('troca sublinhados por espaço, para o leitor de tela ler as palavras separadas', () => {
+    expect(forSpeech('Entidade: ITEM_PEDIDO. cliente_id: int')).toBe(
+      'Entidade: ITEM PEDIDO. cliente id: int',
+    );
+  });
+
+  it('vale também para os anúncios de erro', () => {
+    const result = parseErDiagram(
+      'erDiagram\n  ITEM_PEDIDO {\n    int item_id\n    int item_id\n  }',
+    );
+    expect(describeParseResult(result)).toContain(
+      "O atributo 'item id' já existe na entidade ITEM PEDIDO.",
     );
   });
 });
