@@ -116,9 +116,7 @@ erDiagram
   }`);
 
     expect(result.diagram).toBeUndefined();
-    expect(result.errors).toContainEqual(
-      expect.objectContaining({ code: 'E10', line: 3 }),
-    );
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: 'E10', line: 3 }));
   });
 
   it('informa bloco não fechado na linha de abertura', () => {
@@ -126,9 +124,7 @@ erDiagram
   CLIENTE {
     int id PK`);
 
-    expect(result.errors).toContainEqual(
-      expect.objectContaining({ code: 'E03', line: 2 }),
-    );
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: 'E03', line: 2 }));
   });
 
   it('informa atributo repetido, chave repetida e chave desconhecida', () => {
@@ -270,12 +266,14 @@ erDiagram
 
     expect(result.errors).toEqual([]);
     expect(
-      result.diagram?.relationships.map(({ leftCardinality, rightCardinality, kind, classification }) => ({
-        leftCardinality,
-        rightCardinality,
-        kind,
-        classification,
-      })),
+      result.diagram?.relationships.map(
+        ({ leftCardinality, rightCardinality, kind, classification }) => ({
+          leftCardinality,
+          rightCardinality,
+          kind,
+          classification,
+        }),
+      ),
     ).toEqual([
       {
         leftCardinality: 'exactlyOne',

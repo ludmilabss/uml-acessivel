@@ -33,7 +33,9 @@ export function generateDiagram(scenario: PerformanceScenario): string {
 
   for (let index = 1; index < entityCount; index += 1) {
     lines.push(`  ENTIDADE_${index - 1} ||--o{ ENTIDADE_${index} : possui`);
-    lines.push(`  ENTIDADE_${index} }o..o{ ENTIDADE_${(index * 7) % entityCount} : "relaciona com"`);
+    lines.push(
+      `  ENTIDADE_${index} }o..o{ ENTIDADE_${(index * 7) % entityCount} : "relaciona com"`,
+    );
   }
 
   return lines.join('\n');

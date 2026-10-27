@@ -214,18 +214,12 @@ function getOrCreateEntity(
   return entity;
 }
 
-function closeEntityBlock(
-  block: EntityBlockState,
-  errors: ParseError[],
-  line: number,
-): void {
+function closeEntityBlock(block: EntityBlockState, errors: ParseError[], line: number): void {
   if (block.hasAttributeLine) {
     return;
   }
 
-  errors.push(
-    createError('E10', `A entidade ${block.entityName} não tem atributos.`, line),
-  );
+  errors.push(createError('E10', `A entidade ${block.entityName} não tem atributos.`, line));
 }
 
 function parseAttribute(
@@ -327,9 +321,7 @@ function parseKeys(
 
   for (const key of keys) {
     if (key !== 'PK' && key !== 'FK' && key !== 'UK') {
-      errors.push(
-        createError('E05', `Chave '${key}' desconhecida. Use PK, FK ou UK.`, line),
-      );
+      errors.push(createError('E05', `Chave '${key}' desconhecida. Use PK, FK ou UK.`, line));
       return undefined;
     }
 
@@ -375,9 +367,7 @@ function parseRelationship(
 
 function parseLabel(rawLabel: string, line: number, errors: ParseError[]): string | undefined {
   if (rawLabel === '') {
-    errors.push(
-      createError('E07', 'O relacionamento precisa de um rótulo depois de ":".', line),
-    );
+    errors.push(createError('E07', 'O relacionamento precisa de um rótulo depois de ":".', line));
     return undefined;
   }
 
@@ -425,10 +415,7 @@ function parseOperator(
   };
 }
 
-function classifyRelationship(
-  left: Cardinality,
-  right: Cardinality,
-): RelationshipClassification {
+function classifyRelationship(left: Cardinality, right: Cardinality): RelationshipClassification {
   const leftIsMany = left === 'oneOrMany' || left === 'zeroOrMany';
   const rightIsMany = right === 'oneOrMany' || right === 'zeroOrMany';
 

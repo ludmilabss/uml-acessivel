@@ -71,9 +71,7 @@ describe('buildSemanticTree', () => {
       line: 4,
       reference: { kind: 'entity', entityName: 'CLIENTE' },
     });
-    expect(
-      cliente?.children.map(({ label, description }) => ({ label, description })),
-    ).toEqual([
+    expect(cliente?.children.map(({ label, description }) => ({ label, description }))).toEqual([
       { label: 'Atributos (2)', description: '2 atributos.' },
       { label: 'Relacionamentos (1)', description: '1 relacionamento.' },
     ]);
