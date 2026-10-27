@@ -6,7 +6,9 @@ export function describeParseResult(result: ParseResult): string {
     return `Diagrama interpretado. ${describeDiagram(result.diagram)} A árvore foi atualizada.`;
   }
 
+  // O código vem por último: quem ouve recebe antes a linha e o motivo.
   const count = result.errors.length;
-  const summary = `${count} ${count === 1 ? 'erro' : 'erros'} de sintaxe. ${result.errors[0].message}`;
-  return count > 1 ? `${summary} Veja a lista de erros abaixo do código.` : summary;
+  const [first] = result.errors;
+  const summary = `${count} ${count === 1 ? 'erro' : 'erros'} de sintaxe. ${first.message} Código ${first.code}.`;
+  return count > 1 ? `${summary} Veja a lista de erros abaixo do campo.` : summary;
 }

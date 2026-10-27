@@ -27,7 +27,8 @@ export function ErrorList({ id, errors, onSelectLine }: ErrorListProps) {
               onClick={() => onSelectLine(error.line)}
             >
               <span aria-hidden="true">⚠ </span>
-              {error.message}
+              <span className="font-mono font-bold">{error.code}</span>{' '}
+              <span aria-hidden="true">·</span> {error.message}
             </button>
           </li>
         ))}

@@ -59,6 +59,26 @@ describe('SemanticTree', () => {
     }
   });
 
+  it('começa o nome lido pelo texto visível em todos os itens (WCAG 2.5.3)', async () => {
+    const { user } = setup();
+    await user.tab();
+    // Abre CLIENTE e os grupos dele, para conferir também atributos e relacionamentos.
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}{ArrowRight}{ArrowRight}');
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}');
+
+    const treeitems = screen.getAllByRole('treeitem');
+    expect(treeitems.map((treeitem) => treeitem.getAttribute('aria-label'))).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^Atributo id, tipo int, chave primária$/),
+        expect.stringMatching(/^CLIENTE, exatamente um, faz PEDIDO, zero ou muitos\./),
+      ]),
+    );
+    for (const treeitem of treeitems) {
+      const visible = treeitem.querySelector('.tree-row')!.textContent!.slice(1);
+      expect(treeitem.getAttribute('aria-label')!.startsWith(visible)).toBe(true);
+    }
+  });
+
   it('tem uma única parada de Tab (roving tabindex)', async () => {
     const { user } = setup();
 

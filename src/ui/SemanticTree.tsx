@@ -184,10 +184,7 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
           style={{ paddingLeft: `${(level - 1) * 1.25 + 0.25}rem` }}
         >
           <span className="w-4 shrink-0 text-center">{rowMarker(node, isExpanded)}</span>
-          <span>
-            {node.kind === 'entity' && 'Entidade · '}
-            {node.label}
-          </span>
+          <span>{visibleText(node)}</span>
         </span>
         {isExpanded && (
           <ul role="group">
@@ -222,6 +219,18 @@ function rowMarker(node: SemanticNode, isExpanded: boolean): string {
     return isExpanded ? '▾' : '▸';
   }
   return node.targetId ? '↳' : '·';
+}
+
+/**
+ * Texto da linha na tela. Em entidades, atributos e relacionamentos é a primeira frase da
+ * narração, para o nome lido começar exatamente pelo texto visível (WCAG 2.5.3).
+ */
+function visibleText(node: SemanticNode): string {
+  if (node.kind === 'diagram' || isGroup(node)) {
+    return node.label;
+  }
+  const end = node.description.indexOf('. ');
+  return (end === -1 ? node.description : node.description.slice(0, end)).replace(/\.$/, '');
 }
 
 function isGroup(node: SemanticNode): boolean {
