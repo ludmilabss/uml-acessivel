@@ -1,4 +1,16 @@
 export { parseErDiagram } from './parser';
+export {
+  describeAttribute,
+  describeCardinality,
+  describeClassification,
+  describeDiagram,
+  describeEntity,
+  describeGroup,
+  describeKey,
+  describeRelationship,
+  describeRelationshipKind,
+} from './narration';
+export { buildSemanticTree, entityNodeId } from './semanticTree';
 
 export type {
   Attribute,
@@ -13,3 +25,4 @@ export type {
   RelationshipClassification,
   RelationshipKind,
 } from './model';
+export type { SemanticNode, SemanticNodeKind, SemanticReference } from './semanticTree';
