@@ -22,7 +22,7 @@ describe('acessibilidade (axe-core)', () => {
   it('não tem violações com a lista de erros aberta', async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
-    const editor = screen.getByRole('textbox', { name: 'Código do diagrama (erDiagram)' });
+    const editor = screen.getByRole('textbox', { name: 'Código do diagrama' });
 
     await user.clear(editor);
     await user.click(editor);

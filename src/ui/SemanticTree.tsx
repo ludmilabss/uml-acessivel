@@ -12,6 +12,8 @@ interface SemanticTreeProps {
   readonly tree: SemanticNode;
   /** Id do título que nomeia a árvore para o leitor de tela. */
   readonly labelledBy: string;
+  /** Avisa o texto lido do item focado (ou undefined quando o foco sai da árvore). */
+  readonly onFocusChange?: (spokenText: string | undefined) => void;
 }
 
 /**
@@ -22,7 +24,7 @@ interface SemanticTreeProps {
  * da árvore com uma única parada, e as setas movem o foco dentro dela.
  * Para começar do zero quando o diagrama muda, o componente pai troca a `key`.
  */
-export function SemanticTree({ tree, labelledBy }: SemanticTreeProps) {
+export function SemanticTree({ tree, labelledBy, onFocusChange }: SemanticTreeProps) {
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() =>
     initialExpandedIds(tree),
   );
@@ -117,7 +119,14 @@ export function SemanticTree({ tree, labelledBy }: SemanticTreeProps) {
     event.preventDefault();
   }
 
+  /**
+   * O nome lido começa pelo texto visível (WCAG 2.5.3), para quem usa controle por voz
+   * poder falar o que vê. Nos grupos, o texto visível já diz tudo: "Entidades (4)".
+   */
   function accessibleName(node: SemanticNode): string {
+    if (isGroup(node)) {
+      return node.label;
+    }
     const target = node.targetId ? findNode(tree, node.targetId) : undefined;
     return target ? `${node.description} Enter leva à entidade ${target.label}.` : node.description;
   }
@@ -150,6 +159,7 @@ export function SemanticTree({ tree, labelledBy }: SemanticTreeProps) {
         onFocus={(event) => {
           if (event.target === event.currentTarget) {
             setFocusedId(node.id);
+            onFocusChange?.(accessibleName(node));
           }
         }}
         onClick={(event) => {
@@ -161,18 +171,18 @@ export function SemanticTree({ tree, labelledBy }: SemanticTreeProps) {
         }}
       >
         <span
-          className="tree-row flex cursor-pointer items-baseline gap-2 rounded px-2 py-1"
-          style={{ paddingLeft: `${(level - 1) * 1.25 + 0.5}rem` }}
+          className={`tree-row flex cursor-pointer items-baseline gap-2 rounded-sm border-[3px] border-transparent py-0.5 pr-2 font-mono ${
+            node.kind === 'attribute' || node.kind === 'relationship' ? '' : 'font-bold'
+          } ${node.targetId ? 'text-accent' : ''}`}
+          style={{ paddingLeft: `${(level - 1) * 1.25 + 0.25}rem` }}
         >
           <span aria-hidden="true" className="w-4 shrink-0 text-center">
-            {hasChildren ? (isExpanded ? '▾' : '▸') : '•'}
+            {rowMarker(node, isExpanded)}
           </span>
-          <span className="font-mono">{node.label}</span>
-          {node.targetId && (
-            <span aria-hidden="true" className="text-sm text-gray-700">
-              (Enter: ir para {findNode(tree, node.targetId)?.label})
-            </span>
-          )}
+          <span>
+            {node.kind === 'entity' && <span aria-hidden="true">Entidade · </span>}
+            {node.label}
+          </span>
         </span>
         {isExpanded && (
           <ul role="group">
@@ -186,8 +196,32 @@ export function SemanticTree({ tree, labelledBy }: SemanticTreeProps) {
   }
 
   return (
-    <ul role="tree" aria-labelledby={labelledBy} className="text-base">
+    <ul
+      role="tree"
+      aria-labelledby={labelledBy}
+      className="text-base"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          onFocusChange?.(undefined);
+        }
+      }}
+    >
       {renderNode(tree, 1, 1, 1)}
     </ul>
+  );
+}
+
+function rowMarker(node: SemanticNode, isExpanded: boolean): string {
+  if (node.children.length > 0) {
+    return isExpanded ? '▾' : '▸';
+  }
+  return node.targetId ? '↳' : '·';
+}
+
+function isGroup(node: SemanticNode): boolean {
+  return (
+    node.kind === 'entityGroup' ||
+    node.kind === 'attributeGroup' ||
+    node.kind === 'relationshipGroup'
   );
 }

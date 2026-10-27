@@ -1,21 +1,74 @@
 @import 'tailwindcss';
 
+/*
+ * Temas: as cores ficam em variáveis e o Tailwind usa os nomes abaixo
+ * (bg-surface, text-muted, border-line…). Trocar de tema = trocar data-theme no <html>.
+ * Contraste conferido nos dois temas: texto ≥ 6:1 (WCAG AA pede 4,5:1) e foco ≥ 6:1.
+ */
+:root {
+  --app-bg: #ebe7df;
+  --surface: #f8f6f2;
+  --raised: #ffffff;
+  --fg: #1c1b19;
+  --muted: #57534c;
+  --line: #d6d0c5;
+  --accent: #8a3f08;
+  --accent-fg: #ffffff;
+  --focus: #1d4ed8;
+  --danger: #9b1c1c;
+  --danger-bg: #fdf1f0;
+  color-scheme: light;
+}
+
+:root[data-theme='contrast'] {
+  --app-bg: #000000;
+  --surface: #000000;
+  --raised: #000000;
+  --fg: #ffd600;
+  --muted: #ffd600;
+  --line: #ffd600;
+  --accent: #ffd600;
+  --accent-fg: #000000;
+  --focus: #ffffff;
+  --danger: #ffd600;
+  --danger-bg: #000000;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-app: var(--app-bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-focus: var(--focus);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--fg);
+}
+
 /* Indicador de foco grosso e com contraste, visível também com zoom e baixa visão. */
 .focus-ring:focus-visible {
-  outline: 3px solid #1d4ed8;
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
 /*
  * Na árvore, o foco fica no <li>, que também contém os filhos.
- * O contorno vai só na linha do item, para não envolver o grupo inteiro.
+ * A moldura vai só na linha do item, para não envolver o grupo inteiro.
  */
 .tree-item {
   outline: none;
 }
 
 .tree-item:focus > .tree-row {
-  outline: 3px solid #1d4ed8;
-  outline-offset: 1px;
-  background-color: #dbeafe;
+  border-color: var(--focus);
+  background-color: var(--raised);
 }

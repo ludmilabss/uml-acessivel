@@ -45,6 +45,12 @@ describe('SemanticTree', () => {
     expect(cliente.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('lê nos grupos o mesmo texto que aparece na tela', () => {
+    setup();
+    expect(item('Entidades (2)').textContent).toContain('Entidades (2)');
+    expect(item('Relacionamentos (1)')).toBeTruthy();
+  });
+
   it('tem uma única parada de Tab (roving tabindex)', async () => {
     const { user } = setup();
 
@@ -63,7 +69,7 @@ describe('SemanticTree', () => {
     await user.tab();
 
     await user.keyboard('{ArrowDown}');
-    expect(document.activeElement).toBe(item('2 entidades.'));
+    expect(document.activeElement).toBe(item('Entidades (2)'));
 
     await user.keyboard('{ArrowDown}');
     const cliente = item(/^Entidade: CLIENTE/);
@@ -74,7 +80,7 @@ describe('SemanticTree', () => {
     expect(document.activeElement).toBe(cliente);
 
     await user.keyboard('{ArrowRight}');
-    expect(document.activeElement).toBe(item('1 atributo.'));
+    expect(document.activeElement).toBe(item('Atributos (1)'));
 
     await user.keyboard('{ArrowLeft}');
     expect(document.activeElement).toBe(cliente);
@@ -83,7 +89,7 @@ describe('SemanticTree', () => {
     expect(cliente.getAttribute('aria-expanded')).toBe('false');
 
     await user.keyboard('{ArrowUp}');
-    expect(document.activeElement).toBe(item('2 entidades.'));
+    expect(document.activeElement).toBe(item('Entidades (2)'));
   });
 
   it('vai ao primeiro e ao último item com Home e End', async () => {
