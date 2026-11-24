@@ -25,7 +25,7 @@ describe('acessibilidade (axe-core)', () => {
   it('não tem violações com a lista de erros aberta', async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
-    const editor = screen.getByRole('textbox', { name: 'Código do diagrama' });
+    const editor = screen.getByRole('textbox', { name: 'Editor (sintaxe erDiagram do Mermaid)' });
 
     await user.clear(editor);
     await user.click(editor);
@@ -39,6 +39,22 @@ describe('acessibilidade (axe-core)', () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
     await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
+
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('não tem violações com o desenho ampliado', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Ampliar desenho' }));
+
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('não tem violações com o diálogo de atalhos aberto', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Atalhos de teclado' }));
 
     expect(await axeViolations(container)).toEqual([]);
   });

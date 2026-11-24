@@ -12,6 +12,7 @@ export const themeNames: Readonly<Record<Theme, string>> = {
 
 const THEME_KEY = 'uml-acessivel:tema';
 const SHOW_PREVIEW_KEY = 'uml-acessivel:mostrar-visualizacao';
+const ENLARGE_PREVIEW_KEY = 'uml-acessivel:ampliar-desenho';
 
 /** Tema salvo; se não houver, segue a preferência de contraste do sistema operacional. */
 export function loadTheme(): Theme {
@@ -41,6 +42,15 @@ export function loadShowPreview(): boolean {
 
 export function saveShowPreview(show: boolean): void {
   writeSetting(SHOW_PREVIEW_KEY, String(show));
+}
+
+/** O desenho começa no tamanho normal; fica ampliado só se a pessoa escolheu ampliar. */
+export function loadEnlargePreview(): boolean {
+  return readSetting(ENLARGE_PREVIEW_KEY) === 'true';
+}
+
+export function saveEnlargePreview(enlarge: boolean): void {
+  writeSetting(ENLARGE_PREVIEW_KEY, String(enlarge));
 }
 
 function readSetting(key: string): string | null {

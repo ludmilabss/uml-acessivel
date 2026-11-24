@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildSemanticTree, parseErDiagram } from '../core';
@@ -122,6 +122,27 @@ describe('SemanticTree', () => {
 
     const entity = item(/^Entidade: ITEM PEDIDO\./);
     expect(entity.querySelector('.tree-row')!.textContent).toContain('ITEM_PEDIDO');
+  });
+
+  it('repassa o foco para o item atual quando a árvore inteira recebe foco', async () => {
+    const { user } = setup();
+    const tree = screen.getByRole('tree');
+
+    act(() => tree.focus());
+    expect(document.activeElement).toBe(item(/^Diagrama ER/));
+
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    expect(document.activeElement).toBe(item(/^Entidade: CLIENTE/));
+
+    // Saindo de um item para a árvore como um todo (o VoiceOver faz isso ao sair), o foco não
+    // volta para dentro: senão o cursor ficaria preso na árvore.
+    act(() => tree.focus());
+    expect(document.activeElement).toBe(tree);
+
+    // Entrando de novo, de fora, volta para o item em que a pessoa estava, e não para a raiz.
+    act(() => (document.activeElement as HTMLElement).blur());
+    act(() => tree.focus());
+    expect(document.activeElement).toBe(item(/^Entidade: CLIENTE/));
   });
 
   it('tem uma única parada de Tab (roving tabindex)', async () => {
