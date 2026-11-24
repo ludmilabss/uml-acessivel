@@ -107,11 +107,21 @@ export function parseErDiagram(source: string): ParseResult {
       if (content === '}') {
         closeEntityBlock(block, errors, lineNumber);
         block = undefined;
+        continue;
+      }
+      // Abertura de outra entidade ou relacionamento dentro do bloco: faltou o "}". Reporta E03
+      // e segue lendo a linha fora do bloco, em vez de tratá-la como atributo (o que gerava
+      // E04/E09 em cascata apontando para linhas corretas).
+      if (startsOutsideBlock(content)) {
+        errors.push(
+          createError('E03', unclosedBlockMessage(block, lineNumber), block.openedAtLine),
+        );
+        block = undefined;
       } else {
         parseAttribute(content, block.entityName, lineNumber, entities, errors);
         block = { ...block, hasAttributeLine: true };
+        continue;
       }
-      continue;
     }
 
     const entityBlockMatch = content.match(entityBlockExpression);
@@ -168,13 +178,7 @@ export function parseErDiagram(source: string): ParseResult {
   }
 
   if (block) {
-    errors.push(
-      createError(
-        'E03',
-        `O bloco da entidade ${block.entityName} não foi fechado.`,
-        block.openedAtLine,
-      ),
-    );
+    errors.push(createError('E03', unclosedBlockMessage(block), block.openedAtLine));
   }
 
   if (errors.length > 0) {
@@ -188,6 +192,24 @@ export function parseErDiagram(source: string): ParseResult {
   };
 
   return { diagram, errors };
+}
+
+/** Linhas que nunca são atributos: a abertura de outro bloco ou um relacionamento. */
+function startsOutsideBlock(content: string): boolean {
+  if (entityBlockExpression.test(content)) {
+    return true;
+  }
+  // Relacionamento: a segunda palavra é um operador válido. Não basta ter três palavras,
+  // porque um atributo como "int id PK" também tem.
+  const operator = content.split(/\s+/)[1];
+  return operator !== undefined && relationshipOperatorExpression.test(operator);
+}
+
+function unclosedBlockMessage(block: EntityBlockState, detectedAtLine?: number): string {
+  const base = `O bloco da entidade ${block.entityName} não foi fechado`;
+  return detectedAtLine === undefined
+    ? `${base}.`
+    : `${base}: falta "}" antes da linha ${detectedAtLine}.`;
 }
 
 function isUsefulLine(line: string): boolean {
