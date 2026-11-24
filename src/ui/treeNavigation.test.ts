@@ -5,6 +5,7 @@ import {
   buildParentMap,
   findNode,
   flattenVisible,
+  carryOverTreeState,
   initialExpandedIds,
 } from './treeNavigation';
 import { lineRange } from './textPosition';
@@ -101,5 +102,43 @@ describe('forSpeech', () => {
     expect(describeParseResult(result)).toContain(
       "O atributo 'item id' já existe na entidade ITEM PEDIDO.",
     );
+  });
+});
+
+describe('carryOverTreeState', () => {
+  const build = (source: string) => buildSemanticTree(parseErDiagram(source).diagram!);
+  const before = build('erDiagram\n  CLIENTE ||..o{ PEDIDO : faz\n  CLIENTE {\n    int id PK\n  }');
+
+  it('começa do estado inicial quando não há memória', () => {
+    expect(carryOverTreeState(undefined, before)).toEqual({
+      expandedIds: initialExpandedIds(before),
+      focusedId: 'diagram',
+    });
+  });
+
+  it('mantém os grupos abertos e o item atual que ainda existem', () => {
+    const memory = {
+      tree: before,
+      expandedIds: new Set(['diagram', 'entities', 'entity:CLIENTE', 'entity:CLIENTE:attributes']),
+      focusedId: 'entity:CLIENTE:attribute:id',
+    };
+    const after = build(
+      'erDiagram\n  CLIENTE ||..o{ PEDIDO : faz\n  CLIENTE {\n    int id PK\n    string nome\n  }',
+    );
+    const state = carryOverTreeState(memory, after);
+    expect(state.focusedId).toBe('entity:CLIENTE:attribute:id');
+    expect([...state.expandedIds]).toEqual(
+      expect.arrayContaining(['entity:CLIENTE', 'entity:CLIENTE:attributes']),
+    );
+  });
+
+  it('leva o foco para o ancestral mais próximo quando o item atual sumiu', () => {
+    const memory = {
+      tree: before,
+      expandedIds: new Set(['diagram', 'entities', 'entity:CLIENTE']),
+      focusedId: 'entity:CLIENTE:attribute:id',
+    };
+    const renamed = build('erDiagram\n  CONSUMIDOR ||..o{ PEDIDO : faz');
+    expect(carryOverTreeState(memory, renamed).focusedId).toBe('entities');
   });
 });

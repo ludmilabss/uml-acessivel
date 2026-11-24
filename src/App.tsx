@@ -6,6 +6,7 @@ import { DiagramPreview } from './ui/DiagramPreview';
 import { ErrorList } from './ui/ErrorList';
 import { exampleDiagram } from './ui/exampleDiagram';
 import { SemanticTree, type TreeFocus } from './ui/SemanticTree';
+import type { TreeMemory } from './ui/treeNavigation';
 import { ShortcutsDialog } from './ui/ShortcutsDialog';
 import { LabeledSelect } from './ui/LabeledSelect';
 import { SPEECH_RATES, isSpeaking, isSpeechSupported, speak, stopSpeaking } from './ui/speech';
@@ -34,8 +35,10 @@ const TREE_HINT_ID = 'arvore-instrucoes';
 function App() {
   const [source, setSource] = useState(exampleDiagram);
   const [result, setResult] = useState(() => parseErDiagram(exampleDiagram));
-  // Muda a cada interpretação: recria a árvore, com foco e expansão do zero.
+  // Muda a cada interpretação: recria a árvore, que recupera grupos abertos e item atual da memória.
   const [version, setVersion] = useState(0);
+  // Estado da árvore entre interpretações (inclusive depois de uma com erro, sem árvore).
+  const [treeMemory, setTreeMemory] = useState<TreeMemory>();
   // O id muda a cada anúncio, para o leitor de tela repetir mesmo um texto igual ao anterior.
   const [announcement, setAnnouncement] = useState({ id: 0, text: '' });
   const [treeFocus, setTreeFocus] = useState<TreeFocus>();
@@ -263,6 +266,8 @@ function App() {
             {tree ? (
               <SemanticTree
                 key={version}
+                memory={treeMemory}
+                onMemoryChange={setTreeMemory}
                 tree={tree}
                 labelledBy="titulo-arvore"
                 describedBy={TREE_HINT_ID}
