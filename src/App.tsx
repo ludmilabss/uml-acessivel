@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { buildSemanticTree, parseErDiagram, type SemanticReference } from './core';
+import { buildSemanticTree, exportMarkdown, parseErDiagram, type SemanticReference } from './core';
+import { downloadText } from './ui/download';
 import { describeParseResult } from './ui/announcements';
 import { DiagramEditor } from './ui/DiagramEditor';
 import { DIAGRAM_AREA_ID, DiagramPreview } from './ui/DiagramPreview';
@@ -28,6 +29,7 @@ import {
 } from './ui/preferences';
 
 const EDITOR_ID = 'codigo-diagrama';
+const EXPORT_FILE_NAME = 'diagrama-er.md';
 
 type PanelTarget = 'codigo' | 'arvore' | 'desenho';
 const PANEL_SHORTCUTS: Readonly<Record<string, PanelTarget>> = {
@@ -194,6 +196,15 @@ function App() {
     announce('Não há árvore: corrija os erros de sintaxe. O foco está na lista de erros.');
   }
 
+  function exportDescription() {
+    if (!result.diagram) {
+      announce('Não há descrição para exportar: corrija os erros de sintaxe.');
+      return;
+    }
+    downloadText(EXPORT_FILE_NAME, exportMarkdown(result.diagram), 'text/markdown;charset=utf-8');
+    announce(`Descrição exportada: ${EXPORT_FILE_NAME}.`);
+  }
+
   function togglePreview() {
     const next = !showPreview;
     setShowPreview(next);
@@ -311,6 +322,13 @@ function App() {
         ) : (
           <span className="text-muted">Voz indisponível neste navegador</span>
         )}
+        <button
+          type="button"
+          className="focus-ring rounded-sm border-2 border-muted bg-raised px-3 py-1 font-semibold text-fg"
+          onClick={exportDescription}
+        >
+          Exportar descrição (.md)
+        </button>
         <ShortcutsDialog />
       </div>
 
