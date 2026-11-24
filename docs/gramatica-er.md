@@ -257,6 +257,16 @@ Toda mensagem informa **a linha** e **o motivo**, em texto claro (será anunciad
 | E13 | Recurso fora do MVP | "Linha 2: este recurso ainda não é suportado." |
 | E14 | Texto entre aspas vazio | "Linha 3: o texto entre aspas não pode ser vazio." |
 
+### 9.1 Avisos (não bloqueiam a árvore)
+
+Avisos apontam algo provavelmente esquecido, mas válido no Mermaid. O diagrama é interpretado normalmente, e os avisos aparecem numa lista separada, com estilo neutro, e no anúncio da interpretação.
+
+| Código | Situação | Mensagem sugerida |
+|---|---|---|
+| W01 | Entidade com chave estrangeira (`FK`) que não participa de nenhum relacionamento | "Linha 8: a entidade ITEM tem chave estrangeira (pedido_id), mas não participa de nenhum relacionamento." |
+
+**Por que só isso (#30):** no `erDiagram`, `FK` é só uma marcação; o código não diz para qual entidade a chave aponta. Por isso não dá para validar o destino da FK, e tratar como erro bloquearia diagramas que o Mermaid aceita. Uma FK numa entidade sem relacionamentos, porém, quase sempre é um relacionamento esquecido.
+
 ## 10. Resultado do parser e posições de origem
 
 O parser é independente da interface e deve devolver um resultado explícito:

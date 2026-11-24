@@ -7,6 +7,7 @@ import type {
   ParseError,
   ParseErrorCode,
   ParseResult,
+  ParseWarning,
   Relationship,
   RelationshipClassification,
   RelationshipKind,
@@ -191,7 +192,32 @@ export function parseErDiagram(source: string): ParseResult {
     relationships,
   };
 
-  return { diagram, errors };
+  return { diagram, errors, warnings: findWarnings(diagram) };
+}
+
+/**
+ * W01: entidade com chave estrangeira que não participa de nenhum relacionamento. No Mermaid,
+ * FK é só uma marcação (não diz para qual entidade aponta), então não dá para validar o
+ * destino; mas uma FK numa entidade sem relacionamentos quase sempre é um relacionamento
+ * esquecido. É aviso, não erro: o Mermaid aceita o diagrama.
+ */
+function findWarnings(diagram: Diagram): ParseWarning[] {
+  const related = new Set(diagram.relationships.flatMap((r) => [r.leftEntity, r.rightEntity]));
+  return diagram.entities.flatMap((entity) => {
+    const foreignKeys = entity.attributes.filter((attribute) => attribute.keys.includes('FK'));
+    if (foreignKeys.length === 0 || related.has(entity.name)) {
+      return [];
+    }
+    const names = foreignKeys.map((attribute) => attribute.name).join(', ');
+    const line = foreignKeys[0].line;
+    return [
+      {
+        code: 'W01' as const,
+        message: `Linha ${line}: A entidade ${entity.name} tem chave estrangeira (${names}), mas não participa de nenhum relacionamento.`,
+        line,
+      },
+    ];
+  });
 }
 
 /** Linhas que nunca são atributos: a abertura de outro bloco ou um relacionamento. */

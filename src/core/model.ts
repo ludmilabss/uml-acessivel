@@ -67,7 +67,16 @@ export interface ParseError {
   readonly length?: number;
 }
 
+/** Algo provavelmente esquecido, mas válido: não impede a árvore de ser montada. */
+export interface ParseWarning {
+  readonly code: 'W01';
+  readonly message: string;
+  readonly line: number;
+}
+
 export interface ParseResult {
   readonly diagram?: Diagram;
   readonly errors: readonly ParseError[];
+  /** Só existe quando o diagrama é válido (sem erros). */
+  readonly warnings?: readonly ParseWarning[];
 }

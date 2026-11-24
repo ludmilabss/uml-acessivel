@@ -540,4 +540,29 @@ describe('App', () => {
     const textarea = editor as HTMLTextAreaElement;
     expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe('XK');
   });
+
+  it('mostra e anuncia o aviso de chave estrangeira sem relacionamento, mantendo a árvore (#30)', async () => {
+    const { user, editor } = setup();
+    await replaceCode(
+      user,
+      editor,
+      'erDiagram\n  ITEM {\n    int id PK\n    int pedido_id FK\n  }',
+    );
+    await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+
+    expect(screen.getByRole('tree')).toBeTruthy();
+    const status = screen.getByRole('status').textContent ?? '';
+    expect(status).toMatch(/^Diagrama interpretado\..* A árvore foi atualizada\. /);
+    expect(status).toContain(
+      '1 aviso: Linha 4: A entidade ITEM tem chave estrangeira (pedido id), mas não participa de nenhum relacionamento.',
+    );
+    expect(screen.getByRole('heading', { level: 3, name: '1 aviso' })).toBeTruthy();
+    expect(editor.getAttribute('aria-describedby')).toContain('codigo-diagrama-avisos');
+
+    await user.click(screen.getByRole('button', { name: /^W01/ }));
+    const textarea = editor as HTMLTextAreaElement;
+    expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe(
+      '    int pedido_id FK',
+    );
+  });
 });
