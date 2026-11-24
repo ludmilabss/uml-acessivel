@@ -12,6 +12,7 @@ import { LabeledSelect } from './ui/LabeledSelect';
 import { SPEECH_RATES, isSpeaking, isSpeechSupported, speak, stopSpeaking } from './ui/speech';
 import { ToggleButton } from './ui/ToggleButton';
 import { lineRange } from './ui/textPosition';
+import { forSpeech } from './ui/pronunciation';
 import {
   loadEnlargePreview,
   loadVoiceEnabled,
@@ -47,7 +48,8 @@ function App() {
   // Estado da árvore entre interpretações (inclusive depois de uma com erro, sem árvore).
   const [treeMemory, setTreeMemory] = useState<TreeMemory>();
   // O id muda a cada anúncio, para o leitor de tela repetir mesmo um texto igual ao anterior.
-  const [announcement, setAnnouncement] = useState({ id: 0, text: '' });
+  // urgent: vai para a região assertive, que interrompe o que o leitor de tela está falando.
+  const [announcement, setAnnouncement] = useState({ id: 0, text: '', urgent: false });
   const [treeFocus, setTreeFocus] = useState<TreeFocus>();
   // Continua destacado no desenho depois que o foco sai da árvore (ex.: para rolar o diagrama).
   const [highlight, setHighlight] = useState<SemanticReference>();
@@ -101,8 +103,8 @@ function App() {
   }, [voiceEnabled]);
 
   /** Mostra na barra de status, avisa o leitor de tela (aria-live) e, com a voz ligada, fala. */
-  function announce(text: string) {
-    setAnnouncement((current) => ({ id: current.id + 1, text }));
+  function announce(text: string, urgent = false) {
+    setAnnouncement((current) => ({ id: current.id + 1, text, urgent }));
     if (voiceEnabled) {
       speak(text, voiceRate);
     }
@@ -112,7 +114,7 @@ function App() {
     const next = !voiceEnabled;
     setVoiceEnabled(next);
     const text = next ? 'Voz ligada.' : 'Voz desligada.';
-    setAnnouncement((current) => ({ id: current.id + 1, text }));
+    setAnnouncement((current) => ({ id: current.id + 1, text, urgent: false }));
     if (next) {
       speak(text, voiceRate);
     } else {
@@ -235,13 +237,19 @@ function App() {
       announce('Este item não tem uma linha no código.');
       return;
     }
-    announce(`Linha ${line} do código.`);
+    const lineText = source.split('\n')[line - 1]?.trim() ?? '';
     if (enlargePreview) {
       pendingLine.current = line;
       setEnlargePreview(false);
     } else {
       selectLine(line);
     }
+    // Ao receber o foco, o VoiceOver lê o campo de código inteiro. O anúncio urgente, logo
+    // depois, interrompe essa leitura e diz só a linha de destino.
+    window.setTimeout(
+      () => announce(forSpeech(`Linha ${line} do código: ${lineText}.`), true),
+      300,
+    );
   }
 
   function selectLine(line: number) {
@@ -250,6 +258,9 @@ function App() {
       return;
     }
     const { start, end } = lineRange(source, line);
+    // Seleciona antes de focar: no instante do foco a linha já está selecionada, e o VoiceOver
+    // lê a seleção em vez do código inteiro. Repete depois, caso o navegador mova o cursor.
+    textarea.setSelectionRange(start, end);
     textarea.focus();
     textarea.setSelectionRange(start, end);
   }
@@ -405,8 +416,15 @@ function App() {
 
       <footer className="border-t-2 border-line bg-surface px-6 py-2">
         {/* Região sempre presente no DOM: o leitor de tela só anuncia mudanças em regiões que já existiam. */}
-        <p role="status" aria-live="polite" className="font-semibold">
-          <span key={announcement.id}>{announcement.text}</span>
+        {/* Texto visível; o leitor de tela recebe o mesmo texto pelas regiões abaixo. */}
+        <p aria-hidden="true" className="font-semibold">
+          {announcement.text}
+        </p>
+        <p role="status" aria-live="polite" className="sr-only">
+          <span key={announcement.id}>{announcement.urgent ? '' : announcement.text}</span>
+        </p>
+        <p role="alert" className="sr-only">
+          <span key={announcement.id}>{announcement.urgent ? announcement.text : ''}</span>
         </p>
         {/* Para quem enxerga: repete a narração do item focado. Não é aria-live, pois o leitor já lê o foco. */}
         <p className="text-muted">

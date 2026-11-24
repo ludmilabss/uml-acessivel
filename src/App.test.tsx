@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
@@ -454,7 +454,13 @@ describe('App', () => {
       expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe(
         '    int cliente_id FK',
       );
-      expect(screen.getByRole('status').textContent).toBe(`Linha ${clienteIdLine} do código.`);
+      // Anúncio urgente (interrompe a leitura do campo de código pelo leitor de tela).
+      await waitFor(() =>
+        expect(screen.getByRole('alert').textContent).toBe(
+          `Linha ${clienteIdLine} do código: int cliente id FK.`,
+        ),
+      );
+      expect(screen.getByRole('status').textContent).toBe('');
 
       // Volta para o mesmo item da árvore.
       await user.keyboard('{Alt>}{Shift>}2{/Shift}{/Alt}');
