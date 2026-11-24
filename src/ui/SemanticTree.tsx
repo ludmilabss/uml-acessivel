@@ -3,14 +3,18 @@ import type { SemanticNode, SemanticReference } from '../core';
 import {
   ancestorIds,
   buildParentMap,
+  carryOverTreeState,
   findNode,
   flattenVisible,
-  initialExpandedIds,
+  type TreeMemory,
 } from './treeNavigation';
 import { forSpeech } from './pronunciation';
 
 interface SemanticTreeProps {
   readonly tree: SemanticNode;
+  /** Estado guardado da interpretação anterior, para não fechar tudo a cada reinterpretação. */
+  readonly memory?: TreeMemory;
+  readonly onMemoryChange?: (memory: TreeMemory) => void;
   /** Id do título que nomeia a árvore para o leitor de tela. */
   readonly labelledBy: string;
   /** Id de um texto com instruções de uso, lido pelo leitor de tela ao chegar na árvore. */
@@ -37,11 +41,22 @@ export interface TreeFocus {
   readonly reference?: SemanticReference;
 }
 
-export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: SemanticTreeProps) {
-  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() =>
-    initialExpandedIds(tree),
-  );
-  const [focusedId, setFocusedId] = useState(tree.id);
+export function SemanticTree({
+  tree,
+  memory,
+  onMemoryChange,
+  labelledBy,
+  describedBy,
+  onFocusChange,
+}: SemanticTreeProps) {
+  // Começa do estado da interpretação anterior, se houver (grupos abertos e item atual).
+  const [initialState] = useState(() => carryOverTreeState(memory, tree));
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(initialState.expandedIds);
+  const [focusedId, setFocusedId] = useState(initialState.focusedId);
+
+  useEffect(() => {
+    onMemoryChange?.({ tree, expandedIds, focusedId });
+  }, [tree, expandedIds, focusedId, onMemoryChange]);
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
   const shouldMoveFocus = useRef(false);
 

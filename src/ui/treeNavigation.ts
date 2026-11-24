@@ -55,3 +55,60 @@ export function findNode(root: SemanticNode, id: string): SemanticNode | undefin
 export function initialExpandedIds(root: SemanticNode): Set<string> {
   return new Set([root.id, ...root.children.map((child) => child.id)]);
 }
+
+/** Estado da árvore que sobrevive a uma nova interpretação do código. */
+export interface TreeMemory {
+  readonly tree: SemanticNode;
+  readonly expandedIds: ReadonlySet<string>;
+  readonly focusedId: string;
+}
+
+function collectIds(root: SemanticNode): Set<string> {
+  const ids = new Set<string>();
+  const visit = (node: SemanticNode) => {
+    ids.add(node.id);
+    node.children.forEach(visit);
+  };
+  visit(root);
+  return ids;
+}
+
+/**
+ * Leva o estado da árvore anterior para a nova: os grupos que ainda existem continuam abertos,
+ * e o item atual continua o mesmo ou, se sumiu, vira o ancestral mais próximo que ainda existe.
+ * Grupos principais que não existiam antes começam abertos, como na primeira vez.
+ */
+export function carryOverTreeState(
+  memory: TreeMemory | undefined,
+  tree: SemanticNode,
+): { expandedIds: Set<string>; focusedId: string } {
+  if (!memory) {
+    return { expandedIds: initialExpandedIds(tree), focusedId: tree.id };
+  }
+
+  const nextIds = collectIds(tree);
+  const previousIds = collectIds(memory.tree);
+  const expandedIds = new Set([...memory.expandedIds].filter((id) => nextIds.has(id)));
+  for (const id of initialExpandedIds(tree)) {
+    if (!previousIds.has(id)) {
+      expandedIds.add(id);
+    }
+  }
+
+  const previousParents = buildParentMap(memory.tree);
+  let focusedId = tree.id;
+  for (
+    let id: string | undefined = memory.focusedId;
+    id !== undefined;
+    id = previousParents.get(id)
+  ) {
+    if (nextIds.has(id)) {
+      focusedId = id;
+      break;
+    }
+  }
+
+  // O item atual precisa estar visível: abre o caminho até ele.
+  ancestorIds(focusedId, buildParentMap(tree)).forEach((id) => expandedIds.add(id));
+  return { expandedIds, focusedId };
+}

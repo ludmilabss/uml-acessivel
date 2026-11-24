@@ -3,6 +3,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
+import { exampleDiagram } from './ui/exampleDiagram';
 import { installSpeechMock, removeSpeechMock } from './ui/speechMock';
 
 afterEach(() => {
@@ -326,5 +327,54 @@ describe('App', () => {
     setup();
     expect(screen.queryByRole('button', { name: 'Voz' })).toBeNull();
     expect(screen.getByText('Voz indisponível neste navegador')).toBeTruthy();
+  });
+
+  describe('ao reinterpretar (#34)', () => {
+    const current = () =>
+      screen.getAllByRole('treeitem').find((item) => item.getAttribute('tabindex') === '0');
+
+    async function openClienteAttribute(user: ReturnType<typeof userEvent.setup>) {
+      act(() => screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ }).focus());
+      await user.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}');
+      expect(document.activeElement).toBe(
+        screen.getByRole('treeitem', { name: 'id: int, chave primária' }),
+      );
+    }
+
+    it('mantém os grupos abertos e o item atual, sem tirar o foco de quem interpretou', async () => {
+      const { user } = setup();
+      await openClienteAttribute(user);
+
+      const interpretButton = screen.getByRole('button', { name: 'Interpretar diagrama' });
+      await user.click(interpretButton);
+
+      expect(document.activeElement).toBe(interpretButton);
+      expect(
+        screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ }).getAttribute('aria-expanded'),
+      ).toBe('true');
+      expect(current()?.getAttribute('aria-label')).toBe('id: int, chave primária');
+    });
+
+    it('leva o item atual para o ancestral mais próximo quando ele some', async () => {
+      const { user, editor } = setup();
+      await openClienteAttribute(user);
+
+      await replaceCode(user, editor, exampleDiagram.replaceAll('CLIENTE', 'CONSUMIDOR'));
+      await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+      expect(current()?.getAttribute('aria-label')).toBe('Entidades (4)');
+    });
+
+    it('volta ao estado de antes do erro depois de corrigir o código', async () => {
+      const { user, editor } = setup();
+      await openClienteAttribute(user);
+
+      await replaceCode(user, editor, 'erDiagram\n  CLIENTE ||..o{ PEDIDO');
+      await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+      expect(screen.queryByRole('tree')).toBeNull();
+
+      await replaceCode(user, editor, exampleDiagram);
+      await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+      expect(current()?.getAttribute('aria-label')).toBe('id: int, chave primária');
+    });
   });
 });
