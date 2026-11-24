@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { SemanticNode } from '../core';
+import type { SemanticNode, SemanticReference } from '../core';
 import {
   ancestorIds,
   buildParentMap,
@@ -15,8 +15,8 @@ interface SemanticTreeProps {
   readonly labelledBy: string;
   /** Id de um texto com instruções de uso, lido pelo leitor de tela ao chegar na árvore. */
   readonly describedBy?: string;
-  /** Avisa o texto lido do item focado (ou undefined quando o foco sai da árvore). */
-  readonly onFocusChange?: (spokenText: string | undefined) => void;
+  /** Avisa o item focado (ou undefined quando o foco sai da árvore). */
+  readonly onFocusChange?: (focus: TreeFocus | undefined) => void;
 }
 
 /**
@@ -27,6 +27,16 @@ interface SemanticTreeProps {
  * da árvore com uma única parada, e as setas movem o foco dentro dela.
  * Para começar do zero quando o diagrama muda, o componente pai troca a `key`.
  */
+export interface TreeFocus {
+  /** Texto lido pelo leitor de tela, sem o ajuste de pronúncia. */
+  readonly text: string;
+  /**
+   * Elemento do diagrama correspondente. Num grupo de uma entidade ("Atributos (3)"),
+   * é a própria entidade.
+   */
+  readonly reference?: SemanticReference;
+}
+
 export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: SemanticTreeProps) {
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() =>
     initialExpandedIds(tree),
@@ -137,6 +147,16 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
     return text.replace(/\.$/, '');
   }
 
+  function nearestReference(node: SemanticNode): SemanticReference | undefined {
+    for (let id: string | undefined = node.id; id !== undefined; id = parents.get(id)) {
+      const reference = findNode(tree, id)?.reference;
+      if (reference) {
+        return reference;
+      }
+    }
+    return undefined;
+  }
+
   function renderNode(node: SemanticNode, level: number, position: number, setSize: number) {
     const hasChildren = node.children.length > 0;
     const isExpanded = hasChildren && expandedIds.has(node.id);
@@ -166,7 +186,7 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
         onFocus={(event) => {
           if (event.target === event.currentTarget) {
             setFocusedId(node.id);
-            onFocusChange?.(accessibleName(node));
+            onFocusChange?.({ text: accessibleName(node), reference: nearestReference(node) });
           }
         }}
         onClick={(event) => {
@@ -203,7 +223,19 @@ export function SemanticTree({ tree, labelledBy, describedBy, onFocusChange }: S
       role="tree"
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
-      className="text-base"
+      // Focável (fora da ordem do Tab) só para repassar o foco ao item atual. Com a raiz aberta,
+      // o cursor do VoiceOver para primeiro na árvore como um todo; sem isso, o foco do teclado
+      // não chegava a nenhum item e as setas não funcionavam.
+      tabIndex={-1}
+      className="text-base outline-none"
+      onFocus={(event) => {
+        // Só ao entrar (foco vindo de fora). Saindo, o VoiceOver também passa pela árvore como
+        // um todo; repassar ali prenderia o cursor dentro dela.
+        const comingFromInside = event.currentTarget.contains(event.relatedTarget as Node | null);
+        if (event.target === event.currentTarget && !comingFromInside) {
+          itemRefs.current.get(focusedId)?.focus();
+        }
+      }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           onFocusChange?.(undefined);

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
@@ -13,7 +13,7 @@ afterEach(() => {
 function setup() {
   const user = userEvent.setup();
   render(<App />);
-  const editor = screen.getByRole('textbox', { name: 'Código do diagrama' });
+  const editor = screen.getByRole('textbox', { name: 'Editor (sintaxe erDiagram do Mermaid)' });
   return { user, editor };
 }
 
@@ -41,6 +41,13 @@ describe('App', () => {
       }),
     ).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('');
+  });
+
+  it('dá ao campo de código um nome diferente do título do painel', () => {
+    const { editor } = setup();
+    const heading = screen.getByRole('heading', { level: 2, name: 'Código do diagrama' });
+    expect(editor.getAttribute('aria-labelledby')).toBeNull();
+    expect(heading.textContent).not.toContain('Editor');
   });
 
   it('interpreta o código colado e anuncia o resultado na região aria-live', async () => {
@@ -150,16 +157,112 @@ describe('App', () => {
     ).toBe('true');
   });
 
-  it('lista os atalhos da árvore em frases visíveis, com o nome das teclas por extenso', async () => {
+  it('destaca no desenho o item focado na árvore e mantém o destaque ao sair dela', async () => {
     const { user } = setup();
-    await user.click(screen.getByText('Atalhos de teclado da árvore'));
+    const highlighted = () =>
+      [...screen.getByRole('img').querySelectorAll('[data-highlighted]')].map(
+        (element) => element.getAttribute('data-entity') ?? element.getAttribute('data-attribute'),
+      );
+    expect(highlighted()).toEqual([]);
 
+    act(() => screen.getByRole('treeitem', { name: /^Entidade: PEDIDO/ }).focus());
+    expect(highlighted()).toEqual(['PEDIDO']);
+
+    // Num grupo da entidade ("Atributos (3)"), o destaque fica na própria entidade.
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: 'Atributos (3)' }));
+    expect(highlighted()).toEqual(['PEDIDO']);
+
+    await user.keyboard('{ArrowRight}{ArrowRight}{ArrowDown}');
+    expect(highlighted()).toEqual(['cliente_id']);
+
+    await user.tab();
+    expect(highlighted()).toEqual(['cliente_id']);
+
+    await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+    expect(highlighted()).toEqual([]);
+  });
+
+  it('amplia o desenho escondendo o código, sem reiniciar a árvore, e lembra a escolha', async () => {
+    const { user } = setup();
+    const enlarge = screen.getByRole('button', { name: 'Ampliar desenho' });
+    expect(enlarge.getAttribute('aria-pressed')).toBe('false');
+
+    const cliente = screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ });
+    act(() => cliente.focus());
+    await user.keyboard('{ArrowRight}');
+
+    await user.click(enlarge);
+    expect(enlarge.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('heading', { level: 2, name: 'Código do diagrama' })).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Visualização (SVG)' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe(
+      'Desenho ampliado. O código fica oculto e a árvore fica à esquerda.',
+    );
+    expect(
+      screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ }).getAttribute('aria-expanded'),
+    ).toBe('true');
+
+    cleanup();
+    render(<App />);
+    expect(screen.queryByRole('heading', { level: 2, name: 'Código do diagrama' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Ampliar desenho' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Código do diagrama' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe(
+      'Desenho no tamanho normal. O código voltou a aparecer.',
+    );
+  });
+
+  it('desliga a ampliação ao ocultar a visualização', async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Ampliar desenho' }));
+    expect(screen.queryByRole('heading', { level: 2, name: 'Código do diagrama' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Código do diagrama' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ampliar desenho' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
+    expect(
+      screen.getByRole('button', { name: 'Ampliar desenho' }).getAttribute('aria-pressed'),
+    ).toBe('false');
+  });
+
+  it('deixa "Ampliar desenho" a um Tab da árvore', async () => {
+    const { user } = setup();
+    act(() => screen.getByRole('treeitem', { name: /^Diagrama ER/ }).focus());
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Ampliar desenho' }));
+  });
+
+  it('mostra os atalhos num diálogo, em frases contínuas, e devolve o foco ao fechar', async () => {
+    const { user } = setup();
+    const opener = screen.getByRole('button', { name: 'Atalhos de teclado' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    await user.click(opener);
+    const dialog = screen.getByRole('dialog', { name: 'Atalhos de teclado' });
+    for (const group of ['Na árvore semântica', 'No campo de código', 'Na área do desenho']) {
+      expect(screen.getByRole('heading', { level: 3, name: group })).toBeTruthy();
+    }
+
+    // Cada atalho é um único trecho de texto; as teclas desenhadas ficam escondidas do leitor.
     const shortcut = screen
       .getByText('Setas para cima e para baixo: item anterior e próximo')
       .closest('li')!;
     expect(shortcut.querySelector('[aria-hidden="true"]')?.textContent).toBe('↑↓');
-    // Um único trecho de texto, sem elementos no meio, para o VoiceOver ler a frase de uma vez.
-    const sentence = shortcut.querySelector('span:not([aria-hidden])')!;
-    expect(sentence.childNodes).toHaveLength(1);
+    expect(shortcut.querySelector('span:not([aria-hidden])')!.childNodes).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(dialog.hasAttribute('open')).toBe(false);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('deixa a árvore logo depois do título do painel, sem atalhos no caminho', () => {
+    setup();
+    const panel = screen.getByRole('region', { name: 'Árvore semântica' });
+    expect(panel.querySelector('details')).toBeNull();
+    expect(screen.queryByText('Atalhos de teclado da árvore')).toBeNull();
   });
 });

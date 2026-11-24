@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { buildSemanticTree, parseErDiagram } from './core';
+import { buildSemanticTree, parseErDiagram, type SemanticReference } from './core';
 import { describeParseResult } from './ui/announcements';
 import { DiagramEditor } from './ui/DiagramEditor';
 import { DiagramPreview } from './ui/DiagramPreview';
 import { ErrorList } from './ui/ErrorList';
 import { exampleDiagram } from './ui/exampleDiagram';
-import { SemanticTree } from './ui/SemanticTree';
+import { SemanticTree, type TreeFocus } from './ui/SemanticTree';
+import { ShortcutsDialog } from './ui/ShortcutsDialog';
+import { ToggleButton } from './ui/ToggleButton';
 import { lineRange } from './ui/textPosition';
 import {
+  loadEnlargePreview,
   loadShowPreview,
   loadTheme,
+  saveEnlargePreview,
   saveShowPreview,
   saveTheme,
   themeNames,
@@ -28,9 +32,12 @@ function App() {
   const [version, setVersion] = useState(0);
   // O id muda a cada anúncio, para o leitor de tela repetir mesmo um texto igual ao anterior.
   const [announcement, setAnnouncement] = useState({ id: 0, text: '' });
-  const [focusedDescription, setFocusedDescription] = useState<string>();
+  const [treeFocus, setTreeFocus] = useState<TreeFocus>();
+  // Continua destacado no desenho depois que o foco sai da árvore (ex.: para rolar o diagrama).
+  const [highlight, setHighlight] = useState<SemanticReference>();
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [showPreview, setShowPreview] = useState(loadShowPreview);
+  const [enlargePreview, setEnlargePreview] = useState(loadEnlargePreview);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -41,6 +48,10 @@ function App() {
   useEffect(() => {
     saveShowPreview(showPreview);
   }, [showPreview]);
+
+  useEffect(() => {
+    saveEnlargePreview(enlargePreview);
+  }, [enlargePreview]);
 
   const tree = useMemo(
     () => (result.diagram ? buildSemanticTree(result.diagram) : undefined),
@@ -55,10 +66,26 @@ function App() {
   function togglePreview() {
     const next = !showPreview;
     setShowPreview(next);
+    if (!next) {
+      setEnlargePreview(false);
+    }
     announce(
       next
         ? 'Visualização visível, abaixo da árvore.'
         : 'Visualização oculta. A árvore ocupa a coluna inteira.',
+    );
+  }
+
+  function toggleEnlargePreview() {
+    const next = !enlargePreview;
+    setEnlargePreview(next);
+    if (next) {
+      setShowPreview(true);
+    }
+    announce(
+      next
+        ? 'Desenho ampliado. O código fica oculto e a árvore fica à esquerda.'
+        : 'Desenho no tamanho normal. O código voltou a aparecer.',
     );
   }
 
@@ -67,7 +94,8 @@ function App() {
     setResult(next);
     setVersion((current) => current + 1);
     announce(describeParseResult(next));
-    setFocusedDescription(undefined);
+    setTreeFocus(undefined);
+    setHighlight(undefined);
   }
 
   function selectLine(line: number) {
@@ -120,85 +148,62 @@ function App() {
             </svg>
           </span>
         </label>
-        {/* O nome fica fixo; o estado vai no aria-pressed. */}
-        <button
-          type="button"
-          aria-pressed={showPreview}
-          className={`focus-ring rounded-sm border-2 px-3 py-1 font-semibold ${
-            showPreview
-              ? 'border-accent bg-accent text-accent-fg'
-              : 'border-muted bg-raised text-fg'
-          }`}
-          onClick={togglePreview}
-        >
-          {/* O estado também aparece em forma, não só em cor. */}
-          <span aria-hidden="true">{showPreview ? '✓ ' : '○ '}</span>
+        <ToggleButton pressed={showPreview} onClick={togglePreview}>
           Mostrar visualização
-        </button>
+        </ToggleButton>
+        <ShortcutsDialog />
       </div>
 
       <main
         className={`grid flex-1 grid-cols-1 bg-surface lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] ${
-          showPreview
+          showPreview && !enlargePreview
             ? 'lg:grid-rows-[minmax(0,3fr)_minmax(0,2fr)]'
             : 'lg:grid-rows-[minmax(0,1fr)]'
         }`}
       >
-        <Panel
-          number={1}
-          titleId="titulo-codigo"
-          title="Código do diagrama"
-          className={`lg:border-r-2 ${showPreview ? 'lg:row-span-2' : ''}`}
-        >
-          <DiagramEditor
-            id={EDITOR_ID}
-            value={source}
-            hasErrors={hasErrors}
-            labelledBy="titulo-codigo"
-            describedBy={hasErrors ? `${EDITOR_HINT_ID} ${ERRORS_ID}` : EDITOR_HINT_ID}
-            textareaRef={textareaRef}
-            onChange={setSource}
-            onSubmit={interpret}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="focus-ring rounded-sm border-2 border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg"
-              onClick={interpret}
-            >
-              Interpretar diagrama
-            </button>
-            <p id={EDITOR_HINT_ID} className="text-muted">
-              ou Ctrl + Enter (Cmd + Enter no Mac) no campo
-            </p>
-          </div>
-          <ErrorList id={ERRORS_ID} errors={result.errors} onSelectLine={selectLine} />
-        </Panel>
+        {!enlargePreview && (
+          <Panel
+            number={1}
+            titleId="titulo-codigo"
+            title="Código do diagrama"
+            className={`lg:border-r-2 ${showPreview ? 'lg:row-span-2' : ''}`}
+          >
+            <DiagramEditor
+              id={EDITOR_ID}
+              value={source}
+              hasErrors={hasErrors}
+              describedBy={hasErrors ? `${EDITOR_HINT_ID} ${ERRORS_ID}` : EDITOR_HINT_ID}
+              textareaRef={textareaRef}
+              onChange={setSource}
+              onSubmit={interpret}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="focus-ring rounded-sm border-2 border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg"
+                onClick={interpret}
+              >
+                Interpretar diagrama
+              </button>
+              <p id={EDITOR_HINT_ID} className="text-muted">
+                ou Ctrl + Enter (Cmd + Enter no Mac) no campo
+              </p>
+            </div>
+            <ErrorList id={ERRORS_ID} errors={result.errors} onSelectLine={selectLine} />
+          </Panel>
+        )}
 
         <Panel
           number={2}
           titleId="titulo-arvore"
           title="Árvore semântica"
-          className={showPreview ? 'lg:border-b-2' : ''}
+          className={enlargePreview ? 'lg:border-r-2' : showPreview ? 'lg:border-b-2' : ''}
         >
           {/* Lida pelo leitor de tela ao chegar na árvore (aria-describedby), onde a ajuda é útil. */}
           <p id={TREE_HINT_ID} className="sr-only">
             Use as setas para navegar. Seta para a direita abre um grupo. Enter em um relacionamento
             leva à outra entidade.
           </p>
-          <details className="rounded-sm border-2 border-line bg-raised">
-            <summary className="focus-ring cursor-pointer rounded-sm px-3 py-1.5 font-semibold">
-              Atalhos de teclado da árvore
-            </summary>
-            <ul className="flex flex-col gap-2 px-3 pt-1 pb-3">
-              {treeShortcuts.map(({ keys, name, action }) => (
-                <li key={name} className="flex items-baseline gap-3">
-                  <KeyCaps keys={keys} />
-                  <span>{`${name}: ${action}`}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
           <div className="lg:min-h-0 lg:flex-1 lg:overflow-auto">
             {tree ? (
               <SemanticTree
@@ -206,7 +211,12 @@ function App() {
                 tree={tree}
                 labelledBy="titulo-arvore"
                 describedBy={TREE_HINT_ID}
-                onFocusChange={setFocusedDescription}
+                onFocusChange={(focus) => {
+                  setTreeFocus(focus);
+                  if (focus) {
+                    setHighlight(focus.reference);
+                  }
+                }}
               />
             ) : (
               <p className="text-muted">Corrija os erros de sintaxe para ver a árvore.</p>
@@ -216,7 +226,13 @@ function App() {
 
         {showPreview && (
           <Panel number={3} titleId="titulo-visualizacao" title="Visualização (SVG)">
-            <DiagramPreview />
+            <DiagramPreview
+              diagram={result.diagram}
+              highlight={highlight}
+              enlarged={enlargePreview}
+              onToggleEnlarge={toggleEnlargePreview}
+              onAnnounce={announce}
+            />
           </Panel>
         )}
       </main>
@@ -228,8 +244,8 @@ function App() {
         </p>
         {/* Para quem enxerga: repete a narração do item focado. Não é aria-live, pois o leitor já lê o foco. */}
         <p className="text-muted">
-          {focusedDescription
-            ? `Foco: ${focusedDescription}`
+          {treeFocus
+            ? `Foco: ${treeFocus.text}`
             : !announcement.text && 'Interprete o código ou navegue pela árvore.'}
         </p>
       </footer>
@@ -257,34 +273,6 @@ function Panel({ number, titleId, title, className = '', children }: PanelProps)
       </h2>
       {children}
     </section>
-  );
-}
-
-/**
- * Cada atalho é lido como uma frase contínua. Sem negrito ou outro elemento no meio,
- * porque o VoiceOver dividiria a frase em duas paradas.
- */
-const treeShortcuts: readonly { keys: readonly string[]; name: string; action: string }[] = [
-  { keys: ['↑', '↓'], name: 'Setas para cima e para baixo', action: 'item anterior e próximo' },
-  { keys: ['→'], name: 'Seta para a direita', action: 'abre o grupo ou entra no primeiro item' },
-  { keys: ['←'], name: 'Seta para a esquerda', action: 'fecha o grupo ou volta para o item pai' },
-  { keys: ['Home', 'End'], name: 'Home e End', action: 'primeiro e último item' },
-  { keys: ['Enter'], name: 'Enter', action: 'em um relacionamento, vai até a outra entidade' },
-  { keys: ['Tab'], name: 'Tab', action: 'sai da árvore' },
-];
-
-function KeyCaps({ keys }: { readonly keys: readonly string[] }) {
-  return (
-    <span aria-hidden="true" className="flex w-28 shrink-0 gap-1">
-      {keys.map((key) => (
-        <kbd
-          key={key}
-          className="min-w-8 rounded-sm border-2 border-muted bg-surface px-1.5 text-center font-sans text-lg leading-snug font-bold"
-        >
-          {key}
-        </kbd>
-      ))}
-    </span>
   );
 }
 
