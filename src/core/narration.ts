@@ -75,13 +75,13 @@ export function describeEntity(entity: Entity, relationshipCount: number): strin
   return `Entidade: ${entity.name}. ${attributeCount}, ${relationshipText}.`;
 }
 
+/**
+ * Segue a forma do diagrama ER ("nome: tipo"). Não repete "atributo", pois o grupo
+ * "Atributos" já dá o contexto. Ex.: "id: int, chave primária."
+ */
 export function describeAttribute(attribute: Attribute): string {
-  const parts = [`Atributo ${attribute.name}`, `tipo ${attribute.type}`];
-  if (attribute.keys.length > 0) {
-    parts.push(joinWithAnd(attribute.keys.map(describeKey)));
-  }
-
-  const text = `${parts.join(', ')}.`;
+  const keys = attribute.keys.length > 0 ? `, ${joinWithAnd(attribute.keys.map(describeKey))}` : '';
+  const text = `${attribute.name}: ${attribute.type}${keys}.`;
   return attribute.comment === undefined ? text : `${text} Comentário: ${attribute.comment}.`;
 }
 
