@@ -263,13 +263,16 @@ function App() {
     );
   }
 
-  function selectLine(line: number) {
+  /** Seleciona no código o trecho do erro (coluna e tamanho), ou a linha inteira. */
+  function selectLine(line: number, column?: number, length?: number) {
     const textarea = textareaRef.current;
     if (!textarea) {
       return;
     }
-    const { start, end } = lineRange(source, line);
-    // Seleciona antes de focar: no instante do foco a linha já está selecionada, e o VoiceOver
+    const range = lineRange(source, line);
+    const start = column === undefined ? range.start : range.start + column - 1;
+    const end = column === undefined ? range.end : start + (length ?? 0);
+    // Seleciona antes de focar: no instante do foco o trecho já está selecionado, e o VoiceOver
     // lê a seleção em vez do código inteiro. Repete depois, caso o navegador mova o cursor.
     textarea.setSelectionRange(start, end);
     textarea.focus();

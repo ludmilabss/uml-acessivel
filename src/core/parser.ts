@@ -182,7 +182,7 @@ export function parseErDiagram(source: string): ParseResult {
   }
 
   if (errors.length > 0) {
-    return { errors };
+    return { errors: locateErrors(errors, lines) };
   }
 
   const diagram: Diagram = {
@@ -311,7 +311,7 @@ function extractQuotedText(
 
   const lastQuote = content.lastIndexOf('"');
   if (firstQuote === lastQuote) {
-    errors.push(createError('E11', 'Aspas não fechadas.', line));
+    errors.push(createError('E11', 'Aspas não fechadas.', line, { text: '"' }));
     return undefined;
   }
 
@@ -343,12 +343,19 @@ function parseKeys(
 
   for (const key of keys) {
     if (key !== 'PK' && key !== 'FK' && key !== 'UK') {
-      errors.push(createError('E05', `Chave '${key}' desconhecida. Use PK, FK ou UK.`, line));
+      errors.push(
+        createError('E05', `Chave '${key}' desconhecida. Use PK, FK ou UK.`, line, {
+          text: key,
+          last: true,
+        }),
+      );
       return undefined;
     }
 
     if (validKeys.includes(key)) {
-      errors.push(createError('E12', `A chave ${key} está repetida.`, line));
+      errors.push(
+        createError('E12', `A chave ${key} está repetida.`, line, { text: key, last: true }),
+      );
       return undefined;
     }
 
@@ -425,7 +432,9 @@ function parseOperator(
 ): ParsedOperator | undefined {
   const match = operatorText.match(relationshipOperatorExpression);
   if (!match) {
-    errors.push(createError('E06', 'Símbolo de cardinalidade inválido.', line));
+    errors.push(
+      createError('E06', 'Símbolo de cardinalidade inválido.', line, { text: operatorText }),
+    );
     return undefined;
   }
 
@@ -517,8 +526,43 @@ function hasUnsupportedAttributeType(content: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_]*(?:\[[^\]]*\]|\([^)]*\)|\?)\s+/.test(content);
 }
 
-function createError(code: ParseErrorCode, message: string, line: number): ParseError {
-  return { code, message: `Linha ${line}: ${message}`, line };
+/** Trecho da linha que causou o erro; `last` procura a última ocorrência antes das aspas. */
+interface ErrorSpan {
+  readonly text: string;
+  readonly last?: boolean;
+}
+
+const errorSpans = new WeakMap<ParseError, ErrorSpan>();
+
+function createError(
+  code: ParseErrorCode,
+  message: string,
+  line: number,
+  span?: ErrorSpan,
+): ParseError {
+  const error = { code, message: `Linha ${line}: ${message}`, line };
+  if (span) {
+    errorSpans.set(error, span);
+  }
+  return error;
+}
+
+/**
+ * Acrescenta coluna e tamanho aos erros que sabem qual trecho causou o problema, procurando
+ * esse trecho na linha original (com a indentação, para a coluna bater com o editor).
+ */
+function locateErrors(errors: readonly ParseError[], lines: readonly string[]): ParseError[] {
+  return errors.map((error) => {
+    const span = errorSpans.get(error);
+    const lineText = lines[error.line - 1];
+    if (!span || lineText === undefined) {
+      return error;
+    }
+    const quote = lineText.indexOf('"');
+    const searchable = span.last && quote !== -1 ? lineText.slice(0, quote) : lineText;
+    const index = span.last ? searchable.lastIndexOf(span.text) : lineText.indexOf(span.text);
+    return index === -1 ? error : { ...error, column: index + 1, length: span.text.length };
+  });
 }
 
 function toEntity(entity: MutableEntity): Entity {

@@ -530,4 +530,14 @@ describe('App', () => {
       );
     });
   });
+
+  it('ao ativar um erro com posição conhecida, seleciona só o trecho com problema (#29)', async () => {
+    const { user, editor } = setup();
+    await replaceCode(user, editor, 'erDiagram\n  CLIENTE {\n    int id XK\n  }');
+    await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+
+    await user.click(screen.getByRole('button', { name: /^E05/ }));
+    const textarea = editor as HTMLTextAreaElement;
+    expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe('XK');
+  });
 });
