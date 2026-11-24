@@ -41,6 +41,10 @@ const shortcutGroups: readonly { title: string; shortcuts: readonly Shortcut[] }
     ],
   },
   {
+    title: 'Com a voz ligada',
+    shortcuts: [{ keys: ['Esc'], name: 'Esc', action: 'cala a fala' }],
+  },
+  {
     title: 'Na área do desenho',
     shortcuts: [
       { keys: ['+', '−'], name: 'Mais e menos', action: 'aumenta e diminui o zoom' },

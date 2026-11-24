@@ -13,6 +13,8 @@ export const themeNames: Readonly<Record<Theme, string>> = {
 const THEME_KEY = 'uml-acessivel:tema';
 const SHOW_PREVIEW_KEY = 'uml-acessivel:mostrar-visualizacao';
 const ENLARGE_PREVIEW_KEY = 'uml-acessivel:ampliar-desenho';
+const VOICE_KEY = 'uml-acessivel:voz';
+const VOICE_RATE_KEY = 'uml-acessivel:velocidade-voz';
 
 /** Tema salvo; se não houver, segue a preferência de contraste do sistema operacional. */
 export function loadTheme(): Theme {
@@ -51,6 +53,27 @@ export function loadEnlargePreview(): boolean {
 
 export function saveEnlargePreview(enlarge: boolean): void {
   writeSetting(ENLARGE_PREVIEW_KEY, String(enlarge));
+}
+
+/**
+ * A voz começa desligada: quem usa leitor de tela já ouve a narração por ele, e duas vozes
+ * ao mesmo tempo atrapalham. Ela serve para quem enxerga pouco e não usa leitor de tela.
+ */
+export function loadVoiceEnabled(): boolean {
+  return readSetting(VOICE_KEY) === 'true';
+}
+
+export function saveVoiceEnabled(enabled: boolean): void {
+  writeSetting(VOICE_KEY, String(enabled));
+}
+
+export function loadVoiceRate(allowed: readonly number[]): number {
+  const saved = Number(readSetting(VOICE_RATE_KEY));
+  return allowed.includes(saved) ? saved : 1;
+}
+
+export function saveVoiceRate(rate: number): void {
+  writeSetting(VOICE_RATE_KEY, String(rate));
 }
 
 function readSetting(key: string): string | null {

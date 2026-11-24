@@ -7,13 +7,19 @@ import { ErrorList } from './ui/ErrorList';
 import { exampleDiagram } from './ui/exampleDiagram';
 import { SemanticTree, type TreeFocus } from './ui/SemanticTree';
 import { ShortcutsDialog } from './ui/ShortcutsDialog';
+import { LabeledSelect } from './ui/LabeledSelect';
+import { SPEECH_RATES, isSpeaking, isSpeechSupported, speak, stopSpeaking } from './ui/speech';
 import { ToggleButton } from './ui/ToggleButton';
 import { lineRange } from './ui/textPosition';
 import {
   loadEnlargePreview,
+  loadVoiceEnabled,
+  loadVoiceRate,
   loadShowPreview,
   loadTheme,
   saveEnlargePreview,
+  saveVoiceEnabled,
+  saveVoiceRate,
   saveShowPreview,
   saveTheme,
   themeNames,
@@ -38,6 +44,9 @@ function App() {
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [showPreview, setShowPreview] = useState(loadShowPreview);
   const [enlargePreview, setEnlargePreview] = useState(loadEnlargePreview);
+  const speechSupported = isSpeechSupported();
+  const [voiceEnabled, setVoiceEnabled] = useState(() => speechSupported && loadVoiceEnabled());
+  const [voiceRate, setVoiceRate] = useState(() => loadVoiceRate(SPEECH_RATES));
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -59,8 +68,52 @@ function App() {
   );
   const hasErrors = result.errors.length > 0;
 
+  useEffect(() => {
+    saveVoiceEnabled(voiceEnabled);
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    saveVoiceRate(voiceRate);
+  }, [voiceRate]);
+
+  // Esc cala a voz em qualquer lugar da página (sem impedir o Esc de fechar o diálogo).
+  useEffect(() => {
+    if (!voiceEnabled) {
+      return;
+    }
+    const stopOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isSpeaking()) {
+        stopSpeaking();
+      }
+    };
+    document.addEventListener('keydown', stopOnEscape);
+    return () => document.removeEventListener('keydown', stopOnEscape);
+  }, [voiceEnabled]);
+
+  /** Mostra na barra de status, avisa o leitor de tela (aria-live) e, com a voz ligada, fala. */
   function announce(text: string) {
     setAnnouncement((current) => ({ id: current.id + 1, text }));
+    if (voiceEnabled) {
+      speak(text, voiceRate);
+    }
+  }
+
+  function toggleVoice() {
+    const next = !voiceEnabled;
+    setVoiceEnabled(next);
+    const text = next ? 'Voz ligada.' : 'Voz desligada.';
+    setAnnouncement((current) => ({ id: current.id + 1, text }));
+    if (next) {
+      speak(text, voiceRate);
+    } else {
+      stopSpeaking();
+    }
+  }
+
+  function changeVoiceRate(rate: number) {
+    setVoiceRate(rate);
+    // Fala já na nova velocidade, para a pessoa ouvir a diferença.
+    speak(`Velocidade ${rateLabel(rate)}.`, rate);
   }
 
   function togglePreview() {
@@ -121,36 +174,38 @@ function App() {
       </header>
 
       <div className="flex flex-wrap items-center gap-3 border-b-2 border-line bg-surface px-6 py-2">
-        <label className="flex items-center gap-2 font-semibold">
-          Tema
-          {/* Seta própria: a nativa fica colada na borda e não pode ser afastada. */}
-          <span className="relative inline-flex items-center">
-            <select
-              value={theme}
-              className="focus-ring appearance-none rounded-sm border-2 border-muted bg-raised py-1 pr-10 pl-3 text-fg"
-              onChange={(event) => setTheme(event.target.value as Theme)}
-            >
-              {(Object.keys(themeNames) as Theme[]).map((option) => (
-                <option key={option} value={option}>
-                  {themeNames[option]}
-                </option>
-              ))}
-            </select>
-            <svg
-              viewBox="0 0 12 8"
-              className="pointer-events-none absolute right-3 h-2 w-3 text-fg"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="m1 1.5 5 5 5-5" />
-            </svg>
-          </span>
-        </label>
+        <LabeledSelect
+          label="Tema"
+          value={theme}
+          options={(Object.keys(themeNames) as Theme[]).map((option) => ({
+            value: option,
+            label: themeNames[option],
+          }))}
+          onChange={setTheme}
+        />
         <ToggleButton pressed={showPreview} onClick={togglePreview}>
           Mostrar visualização
         </ToggleButton>
+        {speechSupported ? (
+          <>
+            <ToggleButton pressed={voiceEnabled} onClick={toggleVoice}>
+              Voz
+            </ToggleButton>
+            {voiceEnabled && (
+              <LabeledSelect
+                label="Velocidade"
+                value={String(voiceRate)}
+                options={SPEECH_RATES.map((rate) => ({
+                  value: String(rate),
+                  label: rateLabel(rate),
+                }))}
+                onChange={(value) => changeVoiceRate(Number(value))}
+              />
+            )}
+          </>
+        ) : (
+          <span className="text-muted">Voz indisponível neste navegador</span>
+        )}
         <ShortcutsDialog />
       </div>
 
@@ -215,6 +270,9 @@ function App() {
                   setTreeFocus(focus);
                   if (focus) {
                     setHighlight(focus.reference);
+                    if (voiceEnabled) {
+                      speak(focus.text, voiceRate);
+                    }
                   }
                 }}
               />
@@ -274,6 +332,21 @@ function Panel({ number, titleId, title, className = '', children }: PanelProps)
       {children}
     </section>
   );
+}
+
+/** Ex.: 1.25 → "1,25". Sem "x", que a voz leria como "xis". */
+function rateLabel(rate: number): string {
+  const number = rate.toLocaleString('pt-BR');
+  if (rate === 1) {
+    return `${number} (normal)`;
+  }
+  if (rate === SPEECH_RATES[0]) {
+    return `${number} (mais lenta)`;
+  }
+  if (rate === SPEECH_RATES[SPEECH_RATES.length - 1]) {
+    return `${number} (mais rápida)`;
+  }
+  return number;
 }
 
 function Logo() {
