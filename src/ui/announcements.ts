@@ -8,7 +8,13 @@ export function describeParseResult(result: ParseResult): string {
 
 function describe(result: ParseResult): string {
   if (result.diagram) {
-    return `Diagrama interpretado. ${describeDiagram(result.diagram)} A árvore foi atualizada.`;
+    const interpreted = `Diagrama interpretado. ${describeDiagram(result.diagram)} A árvore foi atualizada.`;
+    const warnings = result.warnings ?? [];
+    if (warnings.length === 0) {
+      return interpreted;
+    }
+    const count = warnings.length === 1 ? '1 aviso' : `${warnings.length} avisos`;
+    return `${interpreted} ${count}: ${warnings[0].message}`;
   }
 
   // O código vem por último: quem ouve recebe antes a linha e o motivo.

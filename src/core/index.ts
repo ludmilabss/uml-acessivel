@@ -22,6 +22,7 @@ export type {
   ParseError,
   ParseErrorCode,
   ParseResult,
+  ParseWarning,
   Relationship,
   RelationshipClassification,
   RelationshipKind,

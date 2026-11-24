@@ -40,6 +40,7 @@ const PANEL_SHORTCUTS: Readonly<Record<string, PanelTarget>> = {
 };
 const EDITOR_HINT_ID = 'codigo-diagrama-dica';
 const ERRORS_ID = 'codigo-diagrama-erros';
+const WARNINGS_ID = 'codigo-diagrama-avisos';
 const TREE_HINT_ID = 'arvore-instrucoes';
 
 function App() {
@@ -364,7 +365,13 @@ function App() {
               id={EDITOR_ID}
               value={source}
               hasErrors={hasErrors}
-              describedBy={hasErrors ? `${EDITOR_HINT_ID} ${ERRORS_ID}` : EDITOR_HINT_ID}
+              describedBy={[
+                EDITOR_HINT_ID,
+                hasErrors && ERRORS_ID,
+                (result.warnings ?? []).length > 0 && WARNINGS_ID,
+              ]
+                .filter(Boolean)
+                .join(' ')}
               textareaRef={textareaRef}
               onChange={setSource}
               onSubmit={interpret}
@@ -382,6 +389,12 @@ function App() {
               </p>
             </div>
             <ErrorList id={ERRORS_ID} errors={result.errors} onSelectLine={selectLine} />
+            <ErrorList
+              kind="warning"
+              id={WARNINGS_ID}
+              errors={result.warnings ?? []}
+              onSelectLine={selectLine}
+            />
           </Panel>
         )}
 

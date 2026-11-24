@@ -391,4 +391,28 @@ erDiagram`);
     expect(error.code).toBe('E07');
     expect(error.column).toBeUndefined();
   });
+
+  it('avisa (sem bloquear) sobre chave estrangeira em entidade sem relacionamento (#30)', () => {
+    const result = parseErDiagram(`erDiagram
+  CLIENTE ||..o{ PEDIDO : faz
+  PEDIDO {
+    int cliente_id FK
+  }
+  ITEM {
+    int id PK
+    int pedido_id FK
+    int produto_id FK
+  }`);
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagram).toBeDefined();
+    expect(result.warnings).toEqual([
+      {
+        code: 'W01',
+        message:
+          'Linha 8: A entidade ITEM tem chave estrangeira (pedido_id, produto_id), mas não participa de nenhum relacionamento.',
+        line: 8,
+      },
+    ]);
+  });
 });
