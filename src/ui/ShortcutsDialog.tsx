@@ -12,6 +12,18 @@ interface Shortcut {
  */
 const shortcutGroups: readonly { title: string; shortcuts: readonly Shortcut[] }[] = [
   {
+    title: 'Em qualquer lugar',
+    shortcuts: [
+      {
+        keys: ['Alt', 'Shift', '1'],
+        name: 'Alt + Shift + 1 (Option no Mac)',
+        action: 'vai para o código',
+      },
+      { keys: ['Alt', 'Shift', '2'], name: 'Alt + Shift + 2', action: 'vai para a árvore' },
+      { keys: ['Alt', 'Shift', '3'], name: 'Alt + Shift + 3', action: 'vai para o desenho' },
+    ],
+  },
+  {
     title: 'Na árvore semântica',
     shortcuts: [
       { keys: ['↑', '↓'], name: 'Setas para cima e para baixo', action: 'item anterior e próximo' },
@@ -130,7 +142,7 @@ export function ShortcutsDialog() {
 
 function KeyCaps({ keys }: { readonly keys: readonly string[] }) {
   return (
-    <span aria-hidden="true" className="flex w-32 shrink-0 gap-1">
+    <span aria-hidden="true" className="flex w-40 shrink-0 gap-1">
       {keys.map((key) => (
         <kbd
           key={key}

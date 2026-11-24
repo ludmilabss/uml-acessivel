@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildSemanticTree, parseErDiagram, type SemanticReference } from './core';
 import { describeParseResult } from './ui/announcements';
 import { DiagramEditor } from './ui/DiagramEditor';
-import { DiagramPreview } from './ui/DiagramPreview';
+import { DIAGRAM_AREA_ID, DiagramPreview } from './ui/DiagramPreview';
 import { ErrorList } from './ui/ErrorList';
 import { exampleDiagram } from './ui/exampleDiagram';
 import { SemanticTree, type TreeFocus } from './ui/SemanticTree';
@@ -28,6 +28,13 @@ import {
 } from './ui/preferences';
 
 const EDITOR_ID = 'codigo-diagrama';
+
+type PanelTarget = 'codigo' | 'arvore' | 'desenho';
+const PANEL_SHORTCUTS: Readonly<Record<string, PanelTarget>> = {
+  Digit1: 'codigo',
+  Digit2: 'arvore',
+  Digit3: 'desenho',
+};
 const EDITOR_HINT_ID = 'codigo-diagrama-dica';
 const ERRORS_ID = 'codigo-diagrama-erros';
 const TREE_HINT_ID = 'arvore-instrucoes';
@@ -119,6 +126,68 @@ function App() {
     speak(`Velocidade ${rateLabel(rate)}.`, rate);
   }
 
+  // Painel que estava oculto no momento do atalho: recebe o foco logo depois de aparecer.
+  const pendingFocus = useRef<PanelTarget>(undefined);
+
+  useEffect(() => {
+    if (pendingFocus.current) {
+      focusPanel(pendingFocus.current);
+      pendingFocus.current = undefined;
+    }
+  });
+
+  /**
+   * Alt + Shift + 1, 2 ou 3 (Option no Mac) leva o foco ao painel de mesmo número, de qualquer
+   * lugar. Usa a tecla física (event.code): no Mac, Option + Shift + número gera um símbolo.
+   */
+  useEffect(() => {
+    const goToPanel = (event: KeyboardEvent) => {
+      const target = PANEL_SHORTCUTS[event.code];
+      if (!target || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      if (target === 'codigo' && enlargePreview) {
+        pendingFocus.current = target;
+        setEnlargePreview(false);
+      } else if (target === 'desenho' && !showPreview) {
+        pendingFocus.current = target;
+        setShowPreview(true);
+      } else {
+        focusPanel(target);
+      }
+    };
+    document.addEventListener('keydown', goToPanel);
+    return () => document.removeEventListener('keydown', goToPanel);
+    // Sem lista de dependências: reinscreve a cada renderização, para usar sempre o estado atual.
+  });
+
+  function focusPanel(target: PanelTarget) {
+    if (target === 'codigo') {
+      textareaRef.current?.focus();
+      return;
+    }
+    if (target === 'desenho') {
+      const area = document.getElementById(DIAGRAM_AREA_ID);
+      if (area) {
+        area.focus();
+      } else {
+        announce('Não há desenho: corrija os erros de sintaxe no código.');
+      }
+      return;
+    }
+    const currentItem = document.querySelector<HTMLElement>(
+      '[role="tree"] [role="treeitem"][tabindex="0"]',
+    );
+    if (currentItem) {
+      currentItem.focus();
+      return;
+    }
+    // Sem árvore (código com erros): leva à lista de erros, onde dá para corrigir.
+    document.querySelector<HTMLElement>(`#${ERRORS_ID} button`)?.focus();
+    announce('Não há árvore: corrija os erros de sintaxe. O foco está na lista de erros.');
+  }
+
   function togglePreview() {
     const next = !showPreview;
     setShowPreview(next);
@@ -166,12 +235,24 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-app text-fg lg:h-screen">
+      {/* Primeira parada do Tab: some até receber foco (WCAG 2.4.1). */}
+      <a
+        href="#titulo-arvore"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-10 focus:rounded-sm focus:border-2 focus:border-accent focus:bg-raised focus:px-3 focus:py-1 focus:font-semibold focus:text-fg focus-ring"
+        onClick={(event) => {
+          event.preventDefault();
+          focusPanel('arvore');
+        }}
+      >
+        Ir para a árvore
+      </a>
       <header className="flex items-center gap-4 border-b-2 border-line bg-raised px-6 py-3">
         <Logo />
         <div>
           <h1 className="text-2xl font-bold">UML Acessível</h1>
           <p className="text-muted">
-            Atalhos: Ctrl+Enter interpretar · Tab chega à árvore · Enter segue relacionamento
+            Atalhos: Alt+Shift+1, 2 e 3 vão aos painéis · Ctrl+Enter interpreta · Enter segue
+            relacionamento
           </p>
         </div>
       </header>

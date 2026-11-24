@@ -21,6 +21,9 @@ interface DiagramPreviewProps {
   readonly onAnnounce?: (text: string) => void;
 }
 
+/** Id da área do desenho, para o atalho Alt + Shift + 3 levar o foco até ela. */
+export const DIAGRAM_AREA_ID = 'area-diagrama';
+
 /** Níveis de zoom; "fit" desenha o diagrama inteiro dentro da área. */
 const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 type Zoom = 'fit' | number;
@@ -154,6 +157,7 @@ export function DiagramPreview({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         role="region"
+        id={DIAGRAM_AREA_ID}
         aria-label="Área do diagrama"
         aria-keyshortcuts="+ - 0"
         className="focus-ring overflow-auto rounded-sm border-2 border-line bg-raised lg:min-h-0 lg:flex-1"
