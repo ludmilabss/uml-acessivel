@@ -324,4 +324,46 @@ erDiagram`);
 
     expect(result.errors).toEqual([expect.objectContaining({ code: 'E01', line: 3 })]);
   });
+
+  it('reporta E03, sem erros em cascata, quando falta "}" antes de outra entidade (#36)', () => {
+    const result = parseErDiagram(`erDiagram
+  CLIENTE {
+    int id PK
+    string nome
+  PEDIDO {
+    int id PK
+    date data
+  }`);
+
+    expect(result.diagram).toBeUndefined();
+    expect(result.errors).toEqual([
+      {
+        code: 'E03',
+        message:
+          'Linha 2: O bloco da entidade CLIENTE não foi fechado: falta "}" antes da linha 5.',
+        line: 2,
+      },
+    ]);
+  });
+
+  it('reporta E03 quando falta "}" antes de um relacionamento e continua lendo o relacionamento', () => {
+    const result = parseErDiagram(`erDiagram
+  CLIENTE {
+    int id PK
+  CLIENTE ||..o{ PEDIDO : faz`);
+
+    expect(result.errors.map(({ code, line }) => ({ code, line }))).toEqual([
+      { code: 'E03', line: 2 },
+    ]);
+  });
+
+  it('mantém o E03 do fim do arquivo', () => {
+    const result = parseErDiagram('erDiagram\n  CLIENTE {\n    int id PK');
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        code: 'E03',
+        message: 'Linha 2: O bloco da entidade CLIENTE não foi fechado.',
+      }),
+    ]);
+  });
 });

@@ -240,7 +240,7 @@ Toda mensagem informa **a linha** e **o motivo**, em texto claro (será anunciad
 |---|---|---|
 | E01 | Falta o cabeçalho `erDiagram` na primeira linha útil | "Linha 1: a primeira linha útil do diagrama deve ser erDiagram." |
 | E02 | Linha não reconhecida | "Linha 5: instrução não reconhecida." |
-| E03 | Bloco de entidade sem `}` | "Linha 8: o bloco da entidade CLIENTE não foi fechado." |
+| E03 | Bloco de entidade sem `}`. Aponta a linha onde o bloco abriu. Se outra entidade (`NOME {`) ou um relacionamento aparece antes do `}`, diz antes de qual linha ele falta, e a linha seguinte é lida normalmente (sem E04/E09 em cascata) | "Linha 2: o bloco da entidade CLIENTE não foi fechado: falta \"}\" antes da linha 5." |
 | E04 | Atributo sem tipo ou sem nome | "Linha 6: o atributo precisa de tipo e nome." |
 | E05 | Chave desconhecida (ex.: `XK`) | "Linha 6: chave 'XK' desconhecida. Use PK, FK ou UK." |
 | E06 | Símbolo de cardinalidade inválido | "Linha 3: símbolo de cardinalidade inválido." |
