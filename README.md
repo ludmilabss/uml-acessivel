@@ -138,7 +138,7 @@ Regras:
 
 ### Definition of Done
 
-Uma tarefa só é considerada pronta quando atende à nossa Definition of Done (ver `docs/`, issue #8).
+Uma tarefa só é considerada pronta quando atende à nossa [Definition of Done](docs/definition-of-done.md), que inclui a checklist de acessibilidade. O modelo de PR traz a mesma checklist.
 
 ## Cronograma
 
