@@ -77,7 +77,7 @@ describe('describeParseResult', () => {
 
   it('anuncia a quantidade de erros e o primeiro deles', () => {
     expect(describeParseResult(parseErDiagram('erDiagram\n  A ||..o{ B'))).toBe(
-      '1 erro de sintaxe. Linha 2: O relacionamento precisa de um rótulo depois de ":". Código E07.',
+      '1 erro de sintaxe. Linha 2: O relacionamento precisa de um rótulo depois de "dois-pontos". Código E07.',
     );
     expect(
       describeParseResult(parseErDiagram('erDiagram\n  A ||..o{ B\n  C ||xxo{ D : x')),

@@ -81,14 +81,14 @@ describe('App', () => {
     await user.keyboard('{Control>}{Enter}{/Control}');
 
     expect(screen.getByRole('status').textContent).toBe(
-      '1 erro de sintaxe. Linha 2: O relacionamento precisa de um rótulo depois de ":". Código E07.',
+      '1 erro de sintaxe. Linha 2: O relacionamento precisa de um rótulo depois de "dois-pontos". Código E07.',
     );
     expect(editor.getAttribute('aria-invalid')).toBe('true');
     expect(screen.queryByRole('tree')).toBeNull();
     expect(screen.getByText('Corrija os erros de sintaxe para ver a árvore.')).toBeTruthy();
 
     const errorButton = screen.getByRole('button', {
-      name: 'E07 Linha 2: O relacionamento precisa de um rótulo depois de ":".',
+      name: 'E07 Linha 2: O relacionamento precisa de um rótulo depois de "dois-pontos".',
     });
     await user.click(errorButton);
     const textarea = editor as HTMLTextAreaElement;
