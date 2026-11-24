@@ -119,7 +119,7 @@ describe('buildSemanticTree', () => {
     );
 
     expect(findNode(tree, 'entity:FUNCIONARIO')?.description).toBe(
-      'Entidade: FUNCIONARIO. 0 atributos, 1 relacionamento.',
+      'Entidade: FUNCIONARIO. Nenhum atributo, 1 relacionamento.',
     );
     expect(findNode(tree, 'entity:FUNCIONARIO:relationships')?.children).toEqual([
       expect.objectContaining({ targetId: 'entity:FUNCIONARIO' }),

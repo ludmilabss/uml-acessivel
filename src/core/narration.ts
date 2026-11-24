@@ -51,13 +51,16 @@ export function describeKey(key: AttributeKey): string {
 }
 
 export function describeDiagram(diagram: Diagram): string {
-  const entityCount = countText(diagram.entities.length, 'entidade', 'entidades');
-  const relationshipCount = countText(
-    diagram.relationships.length,
-    'relacionamento',
-    'relacionamentos',
-  );
-  return `Diagrama ER com ${entityCount} e ${relationshipCount}.`;
+  // "com 2 entidades e 1 relacionamento", "com 2 entidades e sem relacionamentos", "sem entidades".
+  if (diagram.entities.length === 0) {
+    return 'Diagrama ER sem entidades.';
+  }
+  const entities = countText(diagram.entities.length, 'entidade', 'entidades');
+  const relationships =
+    diagram.relationships.length === 0
+      ? 'sem relacionamentos'
+      : countText(diagram.relationships.length, 'relacionamento', 'relacionamentos');
+  return `Diagrama ER com ${entities} e ${relationships}.`;
 }
 
 /** Ex.: "3 entidades." O nome do grupo já aparece no texto visível do nó. */
@@ -72,7 +75,7 @@ export function describeGroup(itemCount: number, singular: string, plural: strin
 export function describeEntity(entity: Entity, relationshipCount: number): string {
   const attributeCount = countText(entity.attributes.length, 'atributo', 'atributos');
   const relationshipText = countText(relationshipCount, 'relacionamento', 'relacionamentos');
-  return `Entidade: ${entity.name}. ${attributeCount}, ${relationshipText}.`;
+  return `Entidade: ${entity.name}. ${capitalize(attributeCount)}, ${relationshipText}.`;
 }
 
 /**
@@ -88,17 +91,44 @@ export function describeAttribute(attribute: Attribute): string {
 /**
  * Segue o exemplo de docs/gramatica-er.md (seção 6.4): cada cardinalidade é
  * lida logo após a entidade a que se refere, preservando a ordem da linha original.
+ * O tipo de ligação vem explicado, e não só nomeado ("identificador" sozinho é jargão).
  */
 export function describeRelationship(relationship: Relationship): string {
   const left = `${relationship.leftEntity}, ${describeCardinality(relationship.leftCardinality)}`;
   const right = `${relationship.rightEntity}, ${describeCardinality(relationship.rightCardinality)}`;
   const classification = describeClassification(relationship.classification);
-  const kind = describeRelationshipKind(relationship.kind);
-  return `${left}, ${relationship.label} ${right}. Relacionamento ${classification}, ${kind}.`;
+  return `${left}, ${relationship.label} ${right}. Relacionamento ${classification}. ${describeIdentification(relationship)}.`;
 }
 
+/**
+ * Identificador: a entidade dependente é a do lado "muitos" (ex.: ITEM_PEDIDO depende de
+ * PEDIDO). Com os dois lados iguais (1:1, N:N), não dá para saber qual depende, e a frase
+ * fica genérica.
+ */
+function describeIdentification(relationship: Relationship): string {
+  if (relationship.kind === 'nonIdentifying') {
+    return 'Não identificador: cada entidade tem identificação própria';
+  }
+  const { leftEntity, rightEntity, classification } = relationship;
+  if (classification === 'oneToMany') {
+    return `Identificador: ${rightEntity} depende de ${leftEntity} para ser identificada`;
+  }
+  if (classification === 'manyToOne') {
+    return `Identificador: ${leftEntity} depende de ${rightEntity} para ser identificada`;
+  }
+  return 'Identificador: uma entidade depende da outra para ser identificada';
+}
+
+/** Ex.: "1 atributo", "3 atributos", "nenhum atributo" (soa mais natural que "0 atributos"). */
 function countText(count: number, singular: string, plural: string): string {
+  if (count === 0) {
+    return `${singular === 'entidade' ? 'nenhuma' : 'nenhum'} ${singular}`;
+  }
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function joinWithAnd(items: readonly string[]): string {
