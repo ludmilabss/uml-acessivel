@@ -94,7 +94,7 @@ describe('SemanticTree', () => {
     expect(attributeRow.textContent).toBe('·id : int chave primária');
 
     const relationshipRow = item(
-      /^CLIENTE, exatamente um, faz PEDIDO, zero ou muitos\. Relacionamento um para muitos, não identificador$/,
+      /^CLIENTE, exatamente um, faz PEDIDO, zero ou muitos\. Relacionamento um para muitos\. Não identificador: cada entidade tem identificação própria$/,
     ).querySelector('.tree-row')!;
     expect([...relationshipRow.querySelectorAll('strong')].map((name) => name.textContent)).toEqual(
       ['CLIENTE', 'PEDIDO'],

@@ -181,7 +181,9 @@ Para a narração e a árvore semântica, o parser classifica o relacionamento p
 | muitos × um | N:1 |
 | muitos × muitos | N:N |
 
-Exemplo de narração: `CLIENTE ||..o{ PEDIDO : faz` → "Cliente, exatamente um, faz Pedido, zero ou muitos. Relacionamento um para muitos, não identificador."
+Exemplo de narração: `CLIENTE ||..o{ PEDIDO : faz` → "CLIENTE, exatamente um, faz PEDIDO, zero ou muitos. Relacionamento um para muitos. Não identificador: cada entidade tem identificação própria."
+
+No relacionamento identificador, a narração diz quem depende de quem (a entidade do lado "muitos"): `PEDIDO ||--|{ ITEM_PEDIDO : contem` → "… Relacionamento um para muitos. Identificador: ITEM_PEDIDO depende de PEDIDO para ser identificada." Em 1:1 e N:N, a frase fica genérica ("uma entidade depende da outra para ser identificada").
 
 ### 6.5 Regras
 
