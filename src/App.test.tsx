@@ -432,4 +432,60 @@ describe('App', () => {
       );
     });
   });
+
+  describe('da árvore para o código (#35)', () => {
+    const clienteIdLine = exampleDiagram.split('\n').indexOf('    int cliente_id FK') + 1;
+
+    async function focusClienteId(user: ReturnType<typeof userEvent.setup>) {
+      act(() => screen.getByRole('treeitem', { name: /^Entidade: PEDIDO/ }).focus());
+      await user.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowDown}');
+      expect(document.activeElement).toBe(
+        screen.getByRole('treeitem', { name: 'cliente id: int, chave estrangeira' }),
+      );
+    }
+
+    it('Shift + Enter leva o cursor à linha do item no código e anuncia a linha', async () => {
+      const { user, editor } = setup();
+      await focusClienteId(user);
+
+      await user.keyboard('{Shift>}{Enter}{/Shift}');
+      const textarea = editor as HTMLTextAreaElement;
+      expect(document.activeElement).toBe(textarea);
+      expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe(
+        '    int cliente_id FK',
+      );
+      expect(screen.getByRole('status').textContent).toBe(`Linha ${clienteIdLine} do código.`);
+
+      // Volta para o mesmo item da árvore.
+      await user.keyboard('{Alt>}{Shift>}2{/Shift}{/Alt}');
+      expect(document.activeElement).toBe(
+        screen.getByRole('treeitem', { name: 'cliente id: int, chave estrangeira' }),
+      );
+    });
+
+    it('avisa quando o item não tem linha (grupos)', async () => {
+      const { user } = setup();
+      const group = screen.getByRole('treeitem', { name: 'Entidades (4)' });
+      act(() => group.focus());
+
+      await user.keyboard('{Shift>}{Enter}{/Shift}');
+      expect(document.activeElement).toBe(group);
+      expect(screen.getByRole('status').textContent).toBe('Este item não tem uma linha no código.');
+    });
+
+    it('mostra o código antes, se ele estiver oculto pelo "Ampliar desenho"', async () => {
+      const { user } = setup();
+      await user.click(screen.getByRole('button', { name: 'Ampliar desenho' }));
+      await focusClienteId(user);
+
+      await user.keyboard('{Shift>}{Enter}{/Shift}');
+      const textarea = screen.getByRole('textbox', {
+        name: 'Editor (sintaxe erDiagram do Mermaid)',
+      }) as HTMLTextAreaElement;
+      expect(document.activeElement).toBe(textarea);
+      expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe(
+        '    int cliente_id FK',
+      );
+    });
+  });
 });

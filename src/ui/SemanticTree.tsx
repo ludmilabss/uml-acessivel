@@ -21,6 +21,8 @@ interface SemanticTreeProps {
   readonly describedBy?: string;
   /** Avisa o item focado (ou undefined quando o foco sai da árvore). */
   readonly onFocusChange?: (focus: TreeFocus | undefined) => void;
+  /** Shift + Enter num item: pede para ir à linha dele no código (undefined se não tiver linha). */
+  readonly onGoToCode?: (line: number | undefined) => void;
 }
 
 /**
@@ -48,6 +50,7 @@ export function SemanticTree({
   labelledBy,
   describedBy,
   onFocusChange,
+  onGoToCode,
 }: SemanticTreeProps) {
   // Começa do estado da interpretação anterior, se houver (grupos abertos e item atual).
   const [initialState] = useState(() => carryOverTreeState(memory, tree));
@@ -135,7 +138,10 @@ export function SemanticTree({
         moveFocus(visibleNodes[visibleNodes.length - 1].id);
         break;
       case 'Enter':
-        if (node.targetId) {
+        if (event.shiftKey) {
+          // Shift + Enter: vai para a linha de origem no código (grupos não têm linha).
+          onGoToCode?.(node.line);
+        } else if (node.targetId) {
           jumpTo(node.targetId);
         } else if (hasChildren) {
           setExpanded(node.id, !isExpanded);

@@ -128,8 +128,14 @@ function App() {
 
   // Painel que estava oculto no momento do atalho: recebe o foco logo depois de aparecer.
   const pendingFocus = useRef<PanelTarget>(undefined);
+  // Linha do código a selecionar quando o código, oculto pelo "Ampliar desenho", aparecer.
+  const pendingLine = useRef<number>(undefined);
 
   useEffect(() => {
+    if (pendingLine.current !== undefined) {
+      selectLine(pendingLine.current);
+      pendingLine.current = undefined;
+    }
     if (pendingFocus.current) {
       focusPanel(pendingFocus.current);
       pendingFocus.current = undefined;
@@ -221,6 +227,21 @@ function App() {
     announce(describeParseResult(next));
     setTreeFocus(undefined);
     setHighlight(undefined);
+  }
+
+  /** Da árvore para o código: seleciona a linha de origem do item e anuncia qual é. */
+  function goToCode(line: number | undefined) {
+    if (line === undefined) {
+      announce('Este item não tem uma linha no código.');
+      return;
+    }
+    announce(`Linha ${line} do código.`);
+    if (enlargePreview) {
+      pendingLine.current = line;
+      setEnlargePreview(false);
+    } else {
+      selectLine(line);
+    }
   }
 
   function selectLine(line: number) {
@@ -352,6 +373,7 @@ function App() {
                 tree={tree}
                 labelledBy="titulo-arvore"
                 describedBy={TREE_HINT_ID}
+                onGoToCode={goToCode}
                 onFocusChange={(focus) => {
                   setTreeFocus(focus);
                   if (focus) {

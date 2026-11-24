@@ -39,6 +39,11 @@ const shortcutGroups: readonly { title: string; shortcuts: readonly Shortcut[] }
       },
       { keys: ['Home', 'End'], name: 'Home e End', action: 'primeiro e último item' },
       { keys: ['Enter'], name: 'Enter', action: 'em um relacionamento, vai até a outra entidade' },
+      {
+        keys: ['Shift', 'Enter'],
+        name: 'Shift + Enter',
+        action: 'vai para a linha do item no código',
+      },
       { keys: ['Tab'], name: 'Tab', action: 'sai da árvore' },
     ],
   },
