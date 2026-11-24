@@ -377,4 +377,59 @@ describe('App', () => {
       expect(current()?.getAttribute('aria-label')).toBe('id: int, chave primária');
     });
   });
+
+  describe('atalhos para os painéis (#33)', () => {
+    const pressPanel = (user: ReturnType<typeof userEvent.setup>, number: 1 | 2 | 3) =>
+      user.keyboard(`{Alt>}{Shift>}${number}{/Shift}{/Alt}`);
+
+    it('tem "Ir para a árvore" como primeira parada de Tab, levando ao item atual', async () => {
+      const { user } = setup();
+      await user.tab();
+      const skipLink = screen.getByRole('link', { name: 'Ir para a árvore' });
+      expect(document.activeElement).toBe(skipLink);
+
+      await user.keyboard('{Enter}');
+      expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: /^Diagrama ER/ }));
+    });
+
+    it('vai para a árvore, o código e o desenho com Alt + Shift + 2, 1 e 3, de dentro do campo de código', async () => {
+      const { user, editor } = setup();
+      await user.click(editor);
+
+      await pressPanel(user, 2);
+      expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: /^Diagrama ER/ }));
+
+      await pressPanel(user, 3);
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Área do diagrama' }));
+
+      await pressPanel(user, 1);
+      expect(document.activeElement).toBe(editor);
+      expect((editor as HTMLTextAreaElement).value).toBe(exampleDiagram);
+    });
+
+    it('mostra o painel oculto antes de levar o foco até ele', async () => {
+      const { user } = setup();
+      await user.click(screen.getByRole('button', { name: 'Ampliar desenho' }));
+      await pressPanel(user, 1);
+      expect(document.activeElement).toBe(
+        screen.getByRole('textbox', { name: 'Editor (sintaxe erDiagram do Mermaid)' }),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Mostrar visualização' }));
+      await pressPanel(user, 3);
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Área do diagrama' }));
+    });
+
+    it('leva à lista de erros quando não há árvore', async () => {
+      const { user, editor } = setup();
+      await replaceCode(user, editor, 'erDiagram\n  CLIENTE ||..o{ PEDIDO');
+      await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+
+      await pressPanel(user, 2);
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: /^E07/ }));
+      expect(screen.getByRole('status').textContent).toBe(
+        'Não há árvore: corrija os erros de sintaxe. O foco está na lista de erros.',
+      );
+    });
+  });
 });
