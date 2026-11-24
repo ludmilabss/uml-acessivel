@@ -366,4 +366,29 @@ erDiagram`);
       }),
     ]);
   });
+
+  it('indica coluna e tamanho do trecho com problema, quando dá para saber (#29)', () => {
+    const result = parseErDiagram(`erDiagram
+  CLIENTE ||xxo{ PEDIDO : faz
+  PEDIDO {
+    int id XK
+    int numero PK, PK
+    string nome "sem fechar
+  }`);
+
+    expect(
+      result.errors.map(({ code, line, column, length }) => ({ code, line, column, length })),
+    ).toEqual([
+      { code: 'E06', line: 2, column: 11, length: 6 },
+      { code: 'E05', line: 4, column: 12, length: 2 },
+      { code: 'E12', line: 5, column: 20, length: 2 },
+      { code: 'E11', line: 6, column: 17, length: 1 },
+    ]);
+  });
+
+  it('não indica coluna quando o erro é da linha inteira', () => {
+    const [error] = parseErDiagram('erDiagram\n  CLIENTE ||..o{ PEDIDO').errors;
+    expect(error.code).toBe('E07');
+    expect(error.column).toBeUndefined();
+  });
 });

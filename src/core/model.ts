@@ -58,6 +58,13 @@ export interface ParseError {
   readonly code: ParseErrorCode;
   readonly message: string;
   readonly line: number;
+  /**
+   * Onde está o trecho com problema na linha (coluna a partir de 1 e tamanho), quando dá para
+   * saber: a chave desconhecida ou repetida, o operador inválido, as aspas abertas.
+   * Serve para o editor selecionar exatamente esse trecho.
+   */
+  readonly column?: number;
+  readonly length?: number;
 }
 
 export interface ParseResult {

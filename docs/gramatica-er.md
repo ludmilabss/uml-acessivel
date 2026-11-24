@@ -238,6 +238,8 @@ Qualquer uma dessas construções deve gerar **erro**, não ser ignorada em sil�
 
 Toda mensagem informa **a linha** e **o motivo**, em texto claro (será anunciada por leitor de tela e síntese de voz).
 
+**Coluna (#29):** a mensagem não fala a coluna ("Linha 3, coluna 18" é difícil de usar sem enxergar e as linhas do erDiagram são curtas). Quando dá para saber qual trecho causou o erro (E05 chave desconhecida, E06 operador inválido, E11 aspas abertas, E12 chave repetida), o erro traz `column` e `length`, e o editor seleciona exatamente esse trecho ao ativar o erro. O leitor de tela lê o trecho selecionado. Nos demais erros, o editor seleciona a linha inteira.
+
 | Código | Situação | Mensagem sugerida |
 |---|---|---|
 | E01 | Falta o cabeçalho `erDiagram` na primeira linha útil | "Linha 1: a primeira linha útil do diagrama deve ser erDiagram." |

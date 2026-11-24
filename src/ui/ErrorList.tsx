@@ -4,10 +4,11 @@ import { forSpeech } from './pronunciation';
 interface ErrorListProps {
   readonly id: string;
   readonly errors: readonly ParseError[];
-  readonly onSelectLine: (line: number) => void;
+  /** Leva o cursor ao erro: o trecho exato (coluna e tamanho), se conhecido, ou a linha inteira. */
+  readonly onSelectLine: (line: number, column?: number, length?: number) => void;
 }
 
-/** Erros em texto (não só em cor). Cada erro é um botão que leva o cursor até a linha no código. */
+/** Erros em texto (não só em cor). Cada erro é um botão que leva o cursor até o erro no código. */
 export function ErrorList({ id, errors, onSelectLine }: ErrorListProps) {
   if (errors.length === 0) {
     return null;
@@ -26,7 +27,7 @@ export function ErrorList({ id, errors, onSelectLine }: ErrorListProps) {
               type="button"
               aria-label={forSpeech(`${error.code} ${error.message}`)}
               className="focus-ring w-full rounded-sm px-1 py-0.5 text-left underline"
-              onClick={() => onSelectLine(error.line)}
+              onClick={() => onSelectLine(error.line, error.column, error.length)}
             >
               <span aria-hidden="true">⚠ </span>
               <span className="font-mono font-bold">{error.code}</span>{' '}
