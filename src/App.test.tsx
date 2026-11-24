@@ -3,9 +3,11 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
+import { installSpeechMock, removeSpeechMock } from './ui/speechMock';
 
 afterEach(() => {
   cleanup();
+  removeSpeechMock();
   localStorage.clear();
   delete document.documentElement.dataset.theme;
 });
@@ -264,5 +266,65 @@ describe('App', () => {
     const panel = screen.getByRole('region', { name: 'Árvore semântica' });
     expect(panel.querySelector('details')).toBeNull();
     expect(screen.queryByText('Atalhos de teclado da árvore')).toBeNull();
+  });
+
+  it('começa com a voz desligada e não fala ao navegar', () => {
+    const { synthesis } = installSpeechMock();
+    setup();
+    expect(screen.getByRole('button', { name: 'Voz' }).getAttribute('aria-pressed')).toBe('false');
+
+    act(() => screen.getByRole('treeitem', { name: /^Entidade: CLIENTE/ }).focus());
+    expect(synthesis.speak).not.toHaveBeenCalled();
+  });
+
+  it('com a voz ligada, fala o item focado na árvore e os anúncios, na velocidade escolhida', async () => {
+    const speech = installSpeechMock();
+    const { user } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'Voz' }));
+    expect(speech.lastText()).toBe('Voz ligada.');
+    expect(screen.getByRole('status').textContent).toBe('Voz ligada.');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Velocidade' }), '1,5');
+    expect(speech.spoken.at(-1)).toMatchObject({ text: 'Velocidade 1,5.', rate: 1.5 });
+
+    act(() => screen.getByRole('treeitem', { name: /^Entidade: ITEM PEDIDO/ }).focus());
+    expect(speech.spoken.at(-1)).toMatchObject({
+      text: 'Entidade: ITEM PEDIDO. 3 atributos, 2 relacionamentos',
+      rate: 1.5,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+    expect(speech.lastText()).toMatch(/^Diagrama interpretado\./);
+
+    // A escolha fica salva.
+    cleanup();
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Voz' }).getAttribute('aria-pressed')).toBe('true');
+    expect((screen.getByRole('combobox', { name: 'Velocidade' }) as HTMLSelectElement).value).toBe(
+      '1.5',
+    );
+  });
+
+  it('cala a voz com Esc e ao desligar', async () => {
+    const speech = installSpeechMock();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Voz' }));
+    const cancels = speech.synthesis.cancel.mock.calls.length;
+
+    speech.synthesis.speaking = true;
+    await user.keyboard('{Escape}');
+    expect(speech.synthesis.cancel.mock.calls.length).toBe(cancels + 1);
+
+    await user.click(screen.getByRole('button', { name: 'Voz' }));
+    expect(speech.synthesis.cancel.mock.calls.length).toBe(cancels + 2);
+    expect(screen.getByRole('status').textContent).toBe('Voz desligada.');
+    expect(screen.queryByRole('combobox', { name: 'Velocidade' })).toBeNull();
+  });
+
+  it('avisa quando o navegador não tem síntese de voz', () => {
+    setup();
+    expect(screen.queryByRole('button', { name: 'Voz' })).toBeNull();
+    expect(screen.getByText('Voz indisponível neste navegador')).toBeTruthy();
   });
 });
