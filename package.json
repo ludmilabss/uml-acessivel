@@ -11,7 +11,9 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "format": "prettier --write src",
-    "format:check": "prettier --check src"
+    "format:check": "prettier --check src",
+    "bench:build": "vite build --config vite.bench.config.ts",
+    "bench:preview": "vite preview --config vite.bench.config.ts --port 4174"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
