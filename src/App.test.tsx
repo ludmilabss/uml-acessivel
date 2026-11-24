@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { exampleDiagram } from './ui/exampleDiagram';
 import { installSpeechMock, removeSpeechMock } from './ui/speechMock';
@@ -491,6 +491,42 @@ describe('App', () => {
       expect(document.activeElement).toBe(textarea);
       expect(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)).toBe(
         '    int cliente_id FK',
+      );
+    });
+  });
+
+  describe('exportar descrição (#27)', () => {
+    it('baixa a descrição em Markdown e anuncia o arquivo', async () => {
+      const { user } = setup();
+      let exported: Blob | undefined;
+      Object.assign(URL, {
+        createObjectURL: vi.fn((blob: Blob) => {
+          exported = blob;
+          return 'blob:diagrama';
+        }),
+        revokeObjectURL: vi.fn(),
+      });
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      await user.click(screen.getByRole('button', { name: 'Exportar descrição (.md)' }));
+
+      expect(click).toHaveBeenCalled();
+      expect(exported?.type).toBe('text/markdown;charset=utf-8');
+      const text = await exported!.text();
+      expect(text).toMatch(/^# Diagrama ER\n\nDiagrama ER com 4 entidades e 3 relacionamentos\./);
+      expect(text).toContain('### ITEM_PEDIDO');
+      expect(screen.getByRole('status').textContent).toBe('Descrição exportada: diagrama-er.md.');
+      click.mockRestore();
+    });
+
+    it('avisa que não há o que exportar quando o código tem erros', async () => {
+      const { user, editor } = setup();
+      await replaceCode(user, editor, 'erDiagram\n  CLIENTE ||..o{ PEDIDO');
+      await user.click(screen.getByRole('button', { name: 'Interpretar diagrama' }));
+
+      await user.click(screen.getByRole('button', { name: 'Exportar descrição (.md)' }));
+      expect(screen.getByRole('status').textContent).toBe(
+        'Não há descrição para exportar: corrija os erros de sintaxe.',
       );
     });
   });

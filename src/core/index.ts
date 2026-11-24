@@ -11,6 +11,7 @@ export {
   describeRelationshipKind,
 } from './narration';
 export { buildSemanticTree, entityNodeId } from './semanticTree';
+export { exportMarkdown } from './markdownExport';
 
 export type {
   Attribute,
