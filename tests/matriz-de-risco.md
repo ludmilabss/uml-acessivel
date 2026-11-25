@@ -1,0 +1,27 @@
+# Matriz de risco — UML Acessível
+
+> Escala de chance e impacto: Baixo / Médio / Alto. Risco = combinação das duas colunas, não é uma multiplicação formal, é o julgamento de QA sobre prioridade de mitigação.
+>
+
+| ID | Risco | Chance | Impacto | Risco geral | Situação | Requisito(s) | Mitigação | Caso(s) de teste relacionados |
+|---|---|---|---|---|---|---|---|---|
+| R01 | Desalinhamento entre a proposta original (diagrama de classes, herança, métodos) e o MVP implementado (diagrama ER) pode gerar expectativa incorreta de banca/stakeholders sobre o que foi entregue | Alta | Alto | **Alto** | Aberto | Escopo geral | Casos de teste e documentação usam a terminologia real do produto (entidade/atributo/cardinalidade); desvio registrado neste plano | CT-FE-01 a CT-FE-04 (adaptados) |
+| R02 | RF05 (sincronização com o SVG) não estava implementado | — | — | — | **Resolvido** | RF05 | SVG implementado (`src/ui/DiagramPreview.tsx` + `src/ui/diagramLayout.ts`): zoom de 50% a 400%, opção "ajustar à área", foco da árvore sincroniza e rola suavemente até o elemento (`scrollIntoContainer`), modo "Ampliar desenho". Casos de teste desbloqueados | CT-FE-09, CT-FE-10, CT-FE-11 |
+| R03 | RF04 (narração por Web Speech API) não estava ligada | Média | Alto | **Médio** | Parcialmente resolvido | RF04, RNF01 | Voz implementada (`src/ui/speech.ts`): botão "Voz", controle de velocidade, fala o item focado, Esc interrompe. **Lacuna que permanece:** `pickVoice()` busca voz pt-BR e cai para qualquer voz "pt-*" ou a padrão do sistema **silenciosamente** — só existe aviso visível ("Voz indisponível neste navegador") quando a Web Speech API não existe, não quando ela existe mas falta voz em português. Esse comportamento diverge do texto da proposta ("deve informar essa limitação de forma visível"). Registrar como achado ao testar CT-FE-13 | CT-FE-12, CT-FE-13 |
+| R04 | Meta de contraste do tema Alto Contraste (≥ 7:1) e do tema Padrão (AA, 4,5:1) não é medida automaticamente — o axe-core continua rodando com a regra `color-contrast` desligada | Média | Alto | **Alto** | Aberto (sem mudança) | RNF01 | Verificação manual com ferramenta externa de contraste | CT-FE-06 |
+| R05 | O requisito de UX pede contorno de foco de 4px; o CSS (`.tree-item:focus > .tree-row`, `.focus-ring`) ainda usa 3px — `src/index.css` não mudou neste merge | Alta | Médio | **Médio** | Aberto (sem mudança) | RNF01 | Caso de teste manual mede o contorno; se divergir, abre-se bug, não se ajusta a expectativa | CT-FE-07 |
+| R06 | Equipe ainda não executou nenhum roteiro completo com NVDA | Alta | Alto | **Alto** | Aberto, porém mais crítico | RNF01, RF03 | Com voz, SVG e exportação agora implementados, o roteiro completo do Lucas (CT-FE-01 a CT-FE-05, mais voz) finalmente pode ser executado de ponta a ponta — prioridade máxima desta rodada | CT-FE-01 a CT-FE-05, CT-FE-12 |
+| R07 | Não há integração contínua (GitHub Actions) configurada | Média | Médio | **Médio** | Aberto (sem mudança) | Processo | `.github/workflows` continua inexistente após o merge; risco registrado, recomenda-se abrir issue própria | — |
+| R08 | Diagramas grandes com erros de sintaxe misturados podem não ter sido medidos em desempenho | Baixa | Baixo | **Baixo** | Aberto (sem mudança) | RNF02 | Aceito pelo time conforme limitação documentada em `docs/relatorio-desempenho.md` (agora também com medição no navegador, `src/bench/`) | — |
+| R09 | RF07 (sons por cardinalidade) e RF08 (exportar Markdown) não implementados | Alta (RF07) / — (RF08) | Baixo | **Baixo** (RF07) / **Resolvido** (RF08) | Parcialmente resolvido | RF07, RF08 | RF08 implementado (`src/core/markdownExport.ts`, botão "Exportar descrição (.md)"): caso de teste desbloqueado. RF07 (sons por tipo de relacionamento) continua sem nenhuma implementação encontrada no código (sem `AudioContext`/osciladores) | CT-FE-18 (desbloqueado) · CT-FE-17 (ainda bloqueado) |
+| R10 | Compatibilidade entre navegadores (RNF04) ainda não verificada formalmente nos três navegadores alvo | Média | Médio | **Médio** | Aberto, escopo maior | RNF04 | Roteiro de fumaça (Gustavo) agora precisa cobrir também voz, SVG e exportação nos três navegadores | CT-FE-16 |
+| R11 | Novo aviso **W01** (entidade com chave estrangeira sem relacionamento) é uma validação de qualidade de modelagem, não um erro de sintaxe — pode confundir o usuário se o texto "aviso" não for claramente distinguido de "erro" | Baixa | Baixo | **Baixo** | Novo | RF09 (adjacente) | UI já diferencia visualmente (ícone "ⓘ" e estilo neutro, não vermelho, em `ErrorList.tsx` com `kind="warning"`); testado automaticamente em `tests/e2e/erros.test.ts` (CT-E2E-09) e manualmente em CT-FE-20 | CT-FE-20 |
+
+## Priorização de mitigação (ordem sugerida, revisada)
+
+1. **R06** — agora que voz, SVG e exportação existem, o roteiro completo do Lucas com NVDA é a prioridade nº 1: é o primeiro teste real do produto quase completo com um leitor de tela de verdade.
+2. **R03** — validar se a ausência de aviso de voz pt-BR (quando existe alguma voz em inglês, por exemplo) é aceitável ou vira bug antes da Entrega 6.
+3. **R04, R05** — riscos de acessibilidade visual (contraste e foco) que afetam diretamente a Marcela; pendentes desde a rodada anterior.
+4. **R01** — alinhar expectativa de escopo com o time antes de qualquer apresentação externa.
+5. **R07, R10** — processo e compatibilidade, importantes mas não bloqueantes.
+6. **R08, R09 (RF07), R11** — riscos baixos, aceitos ou com prazo natural na Entrega 6.
